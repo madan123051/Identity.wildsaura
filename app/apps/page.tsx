@@ -4,33 +4,27 @@ import Navbar from "@/components/Navbar";
 import GlassCard from "@/components/GlassCard";
 import { useAuth } from "@/lib/authContext";
 import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { getIdentityProfile } from "@/lib/identity";
-import { normalizeConnectedApps, registerConnectedApp, type ConnectedAppRecord } from "@/lib/connectedApps";
 
 const APPS = [
-  { id: "identity", name: "Identity", url: "https://identity.wildsaura.com" },
   { id: "market", name: "Market", url: "https://market.wildsaura.com" },
   { id: "drishya", name: "Drishya", url: "https://drishya.wildsaura.com" },
   { id: "community", name: "Community", url: "https://community.wildsaura.com" },
   { id: "creator", name: "Creator Hub", url: "https://creator.wildsaura.com" },
-] as const;
-
-function formatDate(value: any) {
-  if (!value) return "—";
-  return value.toDate?.().toLocaleDateString?.() || "—";
-}
+];
 
 export default function AppsPage() {
   const { user } = useAuth();
-  const [connected, setConnected] = useState<Record<string, ConnectedAppRecord>>(normalizeConnectedApps());
+  const [connected, setConnected] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      await registerConnectedApp(db, user.uid, "identity");
-      const identity = await getIdentityProfile(db, user);
-      setConnected(identity.connectedApps);
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists()) {
+        setConnected(snap.data().connectedApps || {});
+      }
     })();
   }, [user]);
 
@@ -44,27 +38,21 @@ export default function AppsPage() {
             Apps you have used with your WildSaura identity.
           </p>
           <div className="space-y-3">
-            {APPS.map((app) => {
-              const appState = connected[app.id];
-              return (
-                <div
-                  key={app.id}
-                  className="flex justify-between items-center p-3 bg-white/5 rounded-lg"
-                >
-                  <div>
-                    <a href={app.url} className="font-medium hover:text-purple-300">{app.name}</a>
-                    <p className="text-xs text-gray-500">Last seen: {formatDate(appState?.lastSeen)}</p>
-                  </div>
-                  <span>
-                    {appState?.connected ? (
-                      <span className="text-green-400">✔ Connected</span>
-                    ) : (
-                      <span className="text-gray-500">— Not yet</span>
-                    )}
-                  </span>
-                </div>
-              );
-            })}
+            {APPS.map((app) => (
+              <div
+                key={app.id}
+                className="flex justify-between items-center p-3 bg-white/5 rounded-lg"
+              >
+                <span>{app.name}</span>
+                <span>
+                  {connected[app.id] ? (
+                    <span className="text-green-400">✔ Connected</span>
+                  ) : (
+                    <span className="text-gray-500">— Not yet</span>
+                  )}
+                </span>
+              </div>
+            ))}
           </div>
         </GlassCard>
       </main>

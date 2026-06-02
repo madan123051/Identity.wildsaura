@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getAuth, getDb } from '../../../lib/firebaseClient';
 import { claimReferral } from '../../../lib/referral';
-import { ensureIdentityRecordsForAuthUser } from '../../../lib/identity';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -112,28 +111,20 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
     const db = getDb();
     if (!db) return;
     const age = calculateAge(data.dateOfBirth);
-    const normalizedUsername = data.username.toLowerCase();
-    await setDoc(doc(db, 'usernames', normalizedUsername), { uid, created_at: serverTimestamp() }, { merge: true });
+    await setDoc(doc(db, 'usernames', data.username.toLowerCase()), { uid, created_at: serverTimestamp() });
     const profileRef = doc(db, 'profiles', uid);
     const existingSnap = await getDoc(profileRef);
     const existingData = existingSnap.exists() ? existingSnap.data() : {};
-    const verificationStatus = existingData.verification_status === 'approved'
-      ? 'verified'
-      : existingData.verification_status === 'none' || !existingData.verification_status
-        ? 'not_started'
-        : existingData.verification_status;
-    const verified = verificationStatus === 'verified' || existingData.is_verified === true;
-
     await setDoc(profileRef, {
       ...existingData,
       id: uid,
-      username: normalizedUsername,
+      username: data.username.toLowerCase(),
       display_name: data.displayName,
       avatar_url: data.photoURL || existingData.avatar_url || '',
       bio: existingData.bio || '',
       title: existingData.title || '',
       website: existingData.website || '',
-      country: existingData.country || 'Nepal',
+      country: 'Nepal',
       gender: data.gender,
       phone: data.phone,
       email: data.email,
@@ -148,10 +139,10 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
       cleanup_posts_count: existingData.cleanup_posts_count || 0,
       portfolio_track_url: existingData.portfolio_track_url || '',
       portfolio_track_name: existingData.portfolio_track_name || '',
-      is_verified: verified,
+      is_verified: existingData.is_verified || false,
       verified_at: existingData.verified_at || null,
-      verification_badge: existingData.verification_badge || (verified ? 'identity' : 'none'),
-      verification_status: verificationStatus,
+      verification_badge: existingData.verification_badge || 'none',
+      verification_status: existingData.verification_status || 'none',
       id_proof_url: existingData.id_proof_url || null,
       wallet_balance: existingData.wallet_balance || 0,
       esewa_number: existingData.esewa_number || null,
@@ -161,35 +152,9 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
       total_reviews: existingData.total_reviews || 0,
       market_mode: existingData.market_mode || false,
       terms_accepted: true,
-      terms_accepted_at: existingData.terms_accepted_at || serverTimestamp(),
+      terms_accepted_at: serverTimestamp(),
       created_at: existingData.created_at || serverTimestamp(),
-      updated_at: serverTimestamp(),
-    }, { merge: true });
-
-    await setDoc(doc(db, 'users', uid), {
-      uid,
-      email: data.email,
-      username: normalizedUsername,
-      displayName: data.displayName,
-      photoURL: data.photoURL || existingData.avatar_url || '',
-      phone: data.phone,
-      address: data.address,
-      province: data.province,
-      country: existingData.country || 'Nepal',
-      dateOfBirth: data.dateOfBirth,
-      gender: data.gender,
-      verificationStatus,
-      verified,
-      connectedApps: {
-        identity: {
-          connected: true,
-          firstSeen: serverTimestamp(),
-          lastSeen: serverTimestamp(),
-        },
-      },
-      createdAt: existingData.created_at || serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
+    });
   };
 
   const validateSignupForm = (): string | null => {
@@ -283,7 +248,7 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
         const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
         if (profileSnap.exists()) {
           const profileData = profileSnap.data();
-          if (profileData.terms_accepted === true) { await ensureIdentityRecordsForAuthUser(db, user); onAuthSuccess(); return; }
+          if (profileData.terms_accepted === true) { onAuthSuccess(); return; }
           prefillFromProfile(profileData, user);
           setError('कृपया पहिले दर्ता फारम पूरा गर्नुहोस् (Please complete registration first)');
           return;
@@ -332,7 +297,6 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
           return;
         }
       }
-      if (db) await ensureIdentityRecordsForAuthUser(db, user);
       onAuthSuccess();
     } catch (err: any) {
       const msg = err.message || 'Login failed';
@@ -355,11 +319,9 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      const db = getDb();
       setGoogleUser(user);
       setSignupEmail(user.email || '');
       if (user.displayName) setFullName(user.displayName);
-      if (db) await ensureIdentityRecordsForAuthUser(db, user);
       onAuthSuccess();
     } catch (err: any) {
       if (err.code !== 'auth/popup-closed-by-user') setError(err.message || 'Google login failed');

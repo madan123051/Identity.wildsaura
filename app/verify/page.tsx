@@ -7,7 +7,6 @@ import Navbar from "@/components/Navbar";
 import GlassCard from "@/components/GlassCard";
 import { db } from "@/lib/firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { syncVerificationStatus } from "@/lib/verification";
 import { validateReturnUrl } from "@/lib/redirect";
 
 const STEPS = ["Personal Details", "Country", "Upload Document", "Review"];
@@ -34,37 +33,23 @@ function VerifyContent() {
     setSubmitting(true);
     try {
       const userRef = doc(db, "users", user.uid);
+      await setDoc(userRef, {
+        displayName: form.fullName,
+        verificationStatus: "pending",
+        verified: false,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
       const verifRef = doc(db, "verifications", user.uid);
-      await Promise.all([
-        setDoc(userRef, {
-          uid: user.uid,
-          email: user.email || "",
-          displayName: form.fullName,
-          fullName: form.fullName,
-          country: form.country,
-          documentUrl: form.documentUrl,
-          documentURL: form.documentUrl,
-          submittedAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        }, { merge: true }),
-        setDoc(verifRef, {
-          uid: user.uid,
-          fullName: form.fullName,
-          country: form.country,
-          documentUrl: form.documentUrl,
-          status: "pending",
-          submittedAt: serverTimestamp(),
-          reviewedAt: null,
-        }, { merge: true }),
-        setDoc(doc(db, "profiles", user.uid), {
-          id: user.uid,
-          display_name: form.fullName,
-          country: form.country,
-          id_proof_url: form.documentUrl,
-          updated_at: serverTimestamp(),
-        }, { merge: true }),
-      ]);
-      await syncVerificationStatus(db, user.uid, "pending", { uid: user.uid, email: user.email });
+      await setDoc(verifRef, {
+        uid: user.uid,
+        fullName: form.fullName,
+        country: form.country,
+        documentUrl: form.documentUrl,
+        status: "pending",
+        submittedAt: serverTimestamp(),
+        reviewedAt: null,
+      });
 
       const safeUrl = validateReturnUrl(returnUrl);
       window.location.href = safeUrl;
