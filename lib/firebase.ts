@@ -1,18 +1,26 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAnalytics, isSupported } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyCXDJrFmn-pzbqys91tj4Fruqn4tl58p9Y",
+  authDomain: "wildsaura-1ef8a.firebaseapp.com",
+  databaseURL: "https://wildsaura-1ef8a-default-rtdb.firebaseio.com",
+  projectId: "wildsaura-1ef8a",
+  storageBucket: "wildsaura-1ef8a.firebasestorage.app",
+  messagingSenderId: "690017200836",
+  appId: "1:690017200836:web:4c4cb0ec390be0f66ff791",
+  measurementId: "G-KSWRNGCLFP",
 };
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-export { auth, db };
+// Analytics is only supported in browser environments
+const analyticsPromise = isSupported().then((yes) =>
+  yes ? getAnalytics(app) : null
+);
+
+export { auth, db, analyticsPromise };
