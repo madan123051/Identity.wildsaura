@@ -20,11 +20,10 @@ export function SignupFormView() {
       <div className="auth-card" style={{ maxWidth: 480 }}>
         <AuthLogo />
         <h2 style={{ color: '#F0F6FC', fontSize: '1.1rem', textAlign: 'center', marginBottom: '0.25rem' }}>
-          🏔️ Drishya मा स्वागत छ!
+          🏔️ Welcome to Drishya!
         </h2>
         <p style={{ color: '#8B949E', fontSize: '0.8rem', textAlign: 'center', marginBottom: '1rem' }}>
-          नेपाली संस्कृति र प्रकृतिलाई विश्वमा चिनाउनुहोस्<br />
-          <span style={{ fontSize: '0.75rem' }}>Share Nepal's culture & nature with the world</span>
+          Share Nepal's culture &amp; nature with the world
         </p>
 
         {!googleUser && (
@@ -32,7 +31,7 @@ export function SignupFormView() {
             <button className="auth-google-btn" onClick={handleGoogleSignup} disabled={googleLoading}>
               {googleLoading ? (
                 <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="auth-spinner">⟳</span>Google सँग जडान हुँदैछ...
+                  <span className="auth-spinner">⟳</span>Connecting...
                 </span>
               ) : (
                 <>
@@ -42,11 +41,11 @@ export function SignupFormView() {
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                   </svg>
-                  Google बाट दर्ता गर्नुहोस् (Sign up with Google)
+                  Sign up with Google
                 </>
               )}
             </button>
-            <div className="auth-divider"><span>वा email प्रयोग गर्नुहोस्</span></div>
+            <div className="auth-divider"><span>or use email</span></div>
           </>
         )}
 
@@ -63,16 +62,16 @@ export function SignupFormView() {
 
         <form onSubmit={e => { e.preventDefault(); handleNextToTerms(); }} className="auth-form" style={{ gap: '0.6rem' }}>
           <div className="auth-field">
-            <label className="auth-label">👤 पूरा नाम (Full Name) *</label>
-            <input type="text" className="auth-input" placeholder="तपाईंको पूरा नाम" value={fullName} onChange={e => setFullName(e.target.value)} required maxLength={50} />
+            <label className="auth-label">👤 Full Name *</label>
+            <input type="text" className="auth-input" placeholder="Your full name" value={fullName} onChange={e => setFullName(e.target.value)} required maxLength={50} />
           </div>
 
           <div className="auth-field">
             <label className="auth-label">
               🆔 Username *
               {usernameChecking && <span style={{ color: '#8B949E', fontSize: '0.7rem', marginLeft: 6 }}>checking...</span>}
-              {usernameAvailable === true && username && <span style={{ color: '#238636', fontSize: '0.7rem', marginLeft: 6 }}>✓ उपलब्ध (Available)</span>}
-              {usernameAvailable === false && <span style={{ color: '#F85149', fontSize: '0.7rem', marginLeft: 6 }}>✗ लिइसकेको (Taken)</span>}
+              {usernameAvailable === true && username && <span style={{ color: '#238636', fontSize: '0.7rem', marginLeft: 6 }}>✓ Available</span>}
+              {usernameAvailable === false && <span style={{ color: '#F85149', fontSize: '0.7rem', marginLeft: 6 }}>✗ Taken</span>}
             </label>
             <input
               type="text" className="auth-input" placeholder="your_username" value={username}
@@ -80,42 +79,42 @@ export function SignupFormView() {
               required maxLength={20}
               style={{ borderColor: usernameAvailable === false ? '#F85149' : usernameAvailable === true ? '#238636' : undefined }}
             />
-            <span style={{ color: '#6E7681', fontSize: '0.7rem' }}>3-20 characters, lowercase, numbers, underscore</span>
+            <span style={{ color: '#6E7681', fontSize: '0.7rem' }}>3–20 characters, lowercase, numbers, underscore</span>
           </div>
 
           <div className="auth-field">
-            <label className="auth-label">🎂 जन्म मिति (Date of Birth) * <span style={{ color: '#F59E0B', fontSize: '0.7rem' }}>— 16+ आवश्यक</span></label>
+            <label className="auth-label">🎂 Date of Birth * <span style={{ color: '#F59E0B', fontSize: '0.7rem' }}>— 16+ required</span></label>
             <input type="date" className="auth-input" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} max={maxDobDate} required style={{ colorScheme: 'dark' }} />
             {dateOfBirth && calculateAge(dateOfBirth) < 16 && (
-              <span style={{ color: '#F85149', fontSize: '0.75rem' }}>⚠ तपाईं कम्तीमा १६ वर्षको हुनुपर्छ (Must be 16+)</span>
+              <span style={{ color: '#F85149', fontSize: '0.75rem' }}>⚠ Must be 16 or older</span>
             )}
           </div>
 
           <div className="auth-field">
-            <label className="auth-label">⚧ लिंग (Gender) *</label>
+            <label className="auth-label">⚧ Gender *</label>
             <select className="auth-input" value={gender} onChange={e => setGender(e.target.value)} required style={{ colorScheme: 'dark' }}>
-              <option value="">— चयन गर्नुहोस् (Select) —</option>
-              <option value="male">पुरुष (Male)</option>
-              <option value="female">महिला (Female)</option>
-              <option value="other">अन्य (Other)</option>
-              <option value="prefer_not_to_say">भन्न चाहन्नँ (Prefer not to say)</option>
+              <option value="">— Select —</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+              <option value="prefer_not_to_say">Prefer not to say</option>
             </select>
           </div>
 
           <div className="auth-field">
-            <label className="auth-label">📱 फोन नम्बर (Phone Number) *</label>
+            <label className="auth-label">📱 Phone Number *</label>
             <input type="tel" className="auth-input" placeholder="+977-98XXXXXXXX" value={phone} onChange={e => setPhone(e.target.value)} required maxLength={15} />
           </div>
 
           <div className="auth-field">
-            <label className="auth-label">📍 ठेगाना (Address) *</label>
-            <input type="text" className="auth-input" placeholder="तपाईंको शहर/गाउँ" value={address} onChange={e => setAddress(e.target.value)} required maxLength={100} />
+            <label className="auth-label">📍 Address *</label>
+            <input type="text" className="auth-input" placeholder="Your city / town" value={address} onChange={e => setAddress(e.target.value)} required maxLength={100} />
           </div>
 
           <div className="auth-field">
-            <label className="auth-label">🗺️ प्रदेश (Province) *</label>
+            <label className="auth-label">🗺️ Province *</label>
             <select className="auth-input" value={province} onChange={e => setProvince(e.target.value)} required style={{ colorScheme: 'dark' }}>
-              <option value="">— प्रदेश चयन गर्नुहोस् —</option>
+              <option value="">— Select Province —</option>
               {NEPAL_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
@@ -123,7 +122,7 @@ export function SignupFormView() {
           {!googleUser && (
             <>
               <div className="auth-field">
-                <label className="auth-label">📧 Gmail / Email *</label>
+                <label className="auth-label">📧 Email *</label>
                 <input type="email" className="auth-input" placeholder="you@gmail.com" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} required />
               </div>
               <div className="auth-field">
@@ -131,7 +130,7 @@ export function SignupFormView() {
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showPassword ? 'text' : 'password'} className="auth-input"
-                    placeholder="कम्तीमा ६ अक्षर" value={signupPassword}
+                    placeholder="At least 6 characters" value={signupPassword}
                     onChange={e => setSignupPassword(e.target.value)} required minLength={6} style={{ paddingRight: 40 }}
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -142,9 +141,9 @@ export function SignupFormView() {
               </div>
               <div className="auth-field">
                 <label className="auth-label">🔒 Confirm Password *</label>
-                <input type="password" className="auth-input" placeholder="Password दोहोर्याउनुहोस्" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
+                <input type="password" className="auth-input" placeholder="Confirm your password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
                 {confirmPassword && signupPassword !== confirmPassword && (
-                  <span style={{ color: '#F85149', fontSize: '0.75rem' }}>⚠ Password मेल खाएन</span>
+                  <span style={{ color: '#F85149', fontSize: '0.75rem' }}>⚠ Passwords don't match</span>
                 )}
               </div>
             </>
@@ -152,14 +151,14 @@ export function SignupFormView() {
 
           {error && <div className="auth-error">⚠ {error}</div>}
           <button type="submit" className="auth-btn" style={{ marginTop: '0.5rem' }}>
-            अर्को चरण → नियम र सर्तहरू (Next → Terms)
+            Next → Terms &amp; Conditions
           </button>
         </form>
 
         <p className="auth-footer">
-          पहिले नै खाता छ?{' '}
+          Already have an account?{' '}
           <button className="auth-link" onClick={() => { setMode('login'); setError(''); setGoogleUser(null); }}>
-            Sign In गर्नुहोस्
+            Sign In
           </button>
         </p>
       </div>

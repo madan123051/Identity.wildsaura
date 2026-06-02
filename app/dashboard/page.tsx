@@ -128,6 +128,25 @@ export default function DashboardPage() {
                     <span className="text-gray-400">Reviewed</span>
                     <span>{formatFirebaseDate(identity?.reviewedAt)}</span>
                   </div>
+
+                  {/* Verify CTA for unverified users */}
+                  {(status === 'not_started' || status === 'rejected') && (
+                    <div className="pt-2">
+                      <Link
+                        href="/verify"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition"
+                      >
+                        {status === 'rejected' ? '🔄 Re-submit Verification' : '✅ Get Verified'}
+                      </Link>
+                    </div>
+                  )}
+                  {status === 'pending' && (
+                    <div className="pt-2">
+                      <span className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-600/20 border border-yellow-600/40 text-yellow-400 text-sm font-semibold rounded-lg">
+                        ⏳ Verification under review
+                      </span>
+                    </div>
+                  )}
                 </div>
               </GlassCard>
             </div>

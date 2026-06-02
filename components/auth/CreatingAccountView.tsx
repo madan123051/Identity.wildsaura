@@ -15,9 +15,9 @@ export function CreatingAccountView() {
             </svg>
           </div>
           <h2 style={{ color: '#F0F6FC', fontSize: '1.2rem', marginBottom: '0.5rem' }}>
-            🏔️ तपाईंको खाता बनाइँदैछ...
+            🏔️ Creating your account...
           </h2>
-          <p style={{ color: '#8B949E', fontSize: '0.85rem' }}>Creating your Drishya account</p>
+          <p style={{ color: '#8B949E', fontSize: '0.85rem' }}>Setting up your Drishya identity</p>
           {error && <div className="auth-error" style={{ marginTop: '1rem' }}>⚠ {error}</div>}
         </div>
       </div>
