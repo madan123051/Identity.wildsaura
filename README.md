@@ -52,7 +52,7 @@ cp .env.example .env.local
 
 | Variable | Description |
 |----------|-------------|
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase Web API Key |
+| `NEXT_FIREBASE_API_KEY` | Firebase Web API Key |
 | `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Firebase Auth Domain |
 | `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Firebase Project ID |
 | `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Firebase Storage Bucket |
