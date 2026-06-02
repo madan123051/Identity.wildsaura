@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getAuth, getDb } from '../../../lib/firebaseClient';
 import { claimReferral } from '../../../lib/referral';
-import { ensureIdentityRecordsForAuthUser, normalizeVerificationStatus } from '../../../lib/identity';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -116,8 +115,6 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
     const profileRef = doc(db, 'profiles', uid);
     const existingSnap = await getDoc(profileRef);
     const existingData = existingSnap.exists() ? existingSnap.data() : {};
-    const verificationStatus = normalizeVerificationStatus(existingData.verification_status, existingData.is_verified);
-    const isVerified = verificationStatus === 'verified';
     await setDoc(profileRef, {
       ...existingData,
       id: uid,
@@ -142,10 +139,10 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
       cleanup_posts_count: existingData.cleanup_posts_count || 0,
       portfolio_track_url: existingData.portfolio_track_url || '',
       portfolio_track_name: existingData.portfolio_track_name || '',
-      is_verified: isVerified,
+      is_verified: existingData.is_verified || false,
       verified_at: existingData.verified_at || null,
-      verification_badge: existingData.verification_badge || (isVerified ? 'verified' : 'none'),
-      verification_status: verificationStatus,
+      verification_badge: existingData.verification_badge || 'none',
+      verification_status: existingData.verification_status || 'none',
       id_proof_url: existingData.id_proof_url || null,
       wallet_balance: existingData.wallet_balance || 0,
       esewa_number: existingData.esewa_number || null,
@@ -157,30 +154,7 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
       terms_accepted: true,
       terms_accepted_at: serverTimestamp(),
       created_at: existingData.created_at || serverTimestamp(),
-      updated_at: serverTimestamp(),
-    }, { merge: true });
-    await setDoc(doc(db, 'users', uid), {
-      uid,
-      email: data.email,
-      displayName: data.displayName,
-      photoURL: data.photoURL || existingData.avatar_url || '',
-      username: data.username.toLowerCase(),
-      phone: data.phone,
-      address: data.address,
-      province: data.province,
-      country: 'Nepal',
-      dateOfBirth: data.dateOfBirth,
-      gender: data.gender,
-      verificationStatus,
-      verified: isVerified,
-      connectedApps: {
-        identity: { connected: true, firstSeen: serverTimestamp(), lastSeen: serverTimestamp() },
-      },
-      termsAccepted: true,
-      termsAcceptedAt: serverTimestamp(),
-      createdAt: existingData.created_at || serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
+    });
   };
 
   const validateSignupForm = (): string | null => {
@@ -225,15 +199,13 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
       let uid: string;
       let email: string;
       let photoURL = '';
-      let authUser: any = googleUser;
       if (googleUser) {
         uid = googleUser.uid;
         email = googleUser.email || signupEmail;
         photoURL = googleUser.photoURL || '';
       } else {
-        const result = await createUserWithEmailAndPassword(auth, signupEmail, signupPassword);
-        authUser = result.user;
-        uid = result.user.uid;
+        const { user } = await createUserWithEmailAndPassword(auth, signupEmail, signupPassword);
+        uid = user.uid;
         email = signupEmail;
       }
       await createProfile(uid, {
@@ -248,7 +220,6 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
           localStorage.removeItem('drishya_pending_ref');
         }
       } catch { /* non-fatal */ }
-      if (authUser) await ensureIdentityRecordsForAuthUser(db, authUser);
       onAuthSuccess();
     } catch (err: any) {
       const msg = err.message || 'Something went wrong';
@@ -277,7 +248,7 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
         const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
         if (profileSnap.exists()) {
           const profileData = profileSnap.data();
-          if (profileData.terms_accepted === true) { await ensureIdentityRecordsForAuthUser(db, user); onAuthSuccess(); return; }
+          if (profileData.terms_accepted === true) { onAuthSuccess(); return; }
           prefillFromProfile(profileData, user);
           setError('कृपया पहिले दर्ता फारम पूरा गर्नुहोस् (Please complete registration first)');
           return;
@@ -326,7 +297,6 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
           return;
         }
       }
-      if (db) await ensureIdentityRecordsForAuthUser(db, user);
       onAuthSuccess();
     } catch (err: any) {
       const msg = err.message || 'Login failed';
@@ -349,8 +319,6 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      const db = getDb();
-      if (db) await ensureIdentityRecordsForAuthUser(db, user);
       setGoogleUser(user);
       setSignupEmail(user.email || '');
       if (user.displayName) setFullName(user.displayName);

@@ -7,7 +7,6 @@ import Navbar from "@/components/Navbar";
 import GlassCard from "@/components/GlassCard";
 import { db } from "@/lib/firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { syncVerificationStatusTransaction } from "@/lib/verification";
 import { validateReturnUrl } from "@/lib/redirect";
 
 const STEPS = ["Personal Details", "Country", "Upload Document", "Review"];
@@ -41,14 +40,6 @@ function VerifyContent() {
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
-      await setDoc(doc(db, "profiles", user.uid), {
-        display_name: form.fullName,
-        verification_status: "pending",
-        is_verified: false,
-        id_proof_url: form.documentUrl,
-        updated_at: serverTimestamp(),
-      }, { merge: true });
-
       const verifRef = doc(db, "verifications", user.uid);
       await setDoc(verifRef, {
         uid: user.uid,
@@ -58,14 +49,6 @@ function VerifyContent() {
         status: "pending",
         submittedAt: serverTimestamp(),
         reviewedAt: null,
-      }, { merge: true });
-
-      await syncVerificationStatusTransaction({
-        db,
-        uid: user.uid,
-        status: "pending",
-        reviewer: { uid: user.uid, email: user.email },
-        auditMessage: "User submitted verification request",
       });
 
       const safeUrl = validateReturnUrl(returnUrl);
