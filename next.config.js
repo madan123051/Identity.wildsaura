@@ -9,12 +9,12 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'lh3.googleusercontent.com', // Google profile pictures
+        hostname: 'lh3.googleusercontent.com',
       },
     ],
   },
 
-  // ─── TypeScript & ESLint (strict in production) ───────────────────────
+  // ─── TypeScript & ESLint ───────────────────────────────────────────────
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -22,10 +22,8 @@ const nextConfig = {
     ignoreDuringBuilds: false,
   },
 
-  // ─── Experimental ─────────────────────────────────────────────────────
-  experimental: {
-    serverComponentsExternalPackages: ['firebase-admin'],
-  },
+  // ─── External packages for server components ──────────────────────────
+  serverExternalPackages: ['firebase-admin'],
 
   // ─── Security Headers ─────────────────────────────────────────────────
   async headers() {
@@ -63,9 +61,8 @@ const nextConfig = {
 
   // ─── Production optimizations ─────────────────────────────────────────
   compress: true,
-  poweredByHeader: false, // Remove X-Powered-By header
+  poweredByHeader: false,
   reactStrictMode: true,
-  swcMinify: true,
 };
 
 module.exports = nextConfig;
