@@ -1,359 +1,268 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/authContext";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import Navbar from "@/components/Navbar";
-import GlassCard from "@/components/GlassCard";
-import { db } from "@/lib/firebase";
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import {
   collection,
   getDocs,
   doc,
   updateDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-import { useRouter } from "next/navigation";
+  query,
+  orderBy,
+} from 'firebase/firestore';
 
-const ADMIN_EMAIL = "madan1230555@gmail.com";
+const ADMIN_EMAIL = 'madan123050@gmail.com';
 
-type VerificationStatus = "not_started" | "pending" | "approved" | "rejected";
-
-type UserRecord = {
+interface UserData {
   uid: string;
-  email?: string;
+  email: string;
   displayName?: string;
-  photoURL?: string;
-  verificationStatus: VerificationStatus;
-  verified: boolean;
-  connectedApps?: { [key: string]: boolean };
-  updatedAt?: any;
-};
-
-type VerificationRecord = {
-  uid: string;
   fullName?: string;
   country?: string;
-  documentUrl?: string;
-  status: VerificationStatus;
+  documentURL?: string;
+  verificationStatus: 'pending' | 'verified' | 'rejected' | string;
   submittedAt?: any;
-  reviewedAt?: any;
-};
+}
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
   const router = useRouter();
-  const [users, setUsers] = useState<UserRecord[]>([]);
-  const [verifications, setVerifications] = useState<Record<string, VerificationRecord>>({});
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | VerificationStatus>("all");
+  const [authorized, setAuthorized] = useState(false);
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [expandedUid, setExpandedUid] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
-
-  const isAdmin = user?.email === ADMIN_EMAIL;
 
   useEffect(() => {
-    if (!isAdmin) return;
-    fetchData();
-  }, [isAdmin]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [usersSnap, verifSnap] = await Promise.all([
-        getDocs(collection(db, "users")),
-        getDocs(collection(db, "verifications")),
-      ]);
-
-      const usersData: UserRecord[] = usersSnap.docs.map((d) => ({
-        uid: d.id,
-        verificationStatus: "not_started",
-        verified: false,
-        ...(d.data() as any),
-      }));
-
-      const verifData: Record<string, VerificationRecord> = {};
-      verifSnap.docs.forEach((d) => {
-        verifData[d.id] = { uid: d.id, status: "pending", ...(d.data() as any) };
-      });
-
-      setUsers(usersData);
-      setVerifications(verifData);
-    } catch (err) {
-      console.error(err);
-    } finally {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user || user.email !== ADMIN_EMAIL) {
+        setLoading(false);
+        setAuthorized(false);
+        return;
+      }
+      setAuthorized(true);
+      await fetchUsers();
       setLoading(false);
-    }
-  };
+    });
+    return () => unsubscribe();
+  }, []);
 
-  const handleApprove = async (uid: string) => {
-    setActionLoading(uid + "_approve");
+  const fetchUsers = async () => {
     try {
-      await Promise.all([
-        updateDoc(doc(db, "users", uid), {
-          verificationStatus: "approved",
-          verified: true,
-          updatedAt: serverTimestamp(),
-        }),
-        updateDoc(doc(db, "verifications", uid), {
-          status: "approved",
-          reviewedAt: serverTimestamp(),
-        }),
-      ]);
-      await fetchData();
-    } catch (err) {
-      alert("Error approving user");
-    } finally {
-      setActionLoading(null);
+      const q = query(collection(db, 'users'), orderBy('submittedAt', 'desc'));
+      const snapshot = await getDocs(q);
+      const data = snapshot.docs.map((d) => ({ uid: d.id, ...d.data() } as UserData));
+      setUsers(data);
+    } catch {
+      const snapshot = await getDocs(collection(db, 'users'));
+      const data = snapshot.docs.map((d) => ({ uid: d.id, ...d.data() } as UserData));
+      setUsers(data);
     }
   };
 
-  const handleReject = async (uid: string) => {
-    setActionLoading(uid + "_reject");
-    try {
-      await Promise.all([
-        updateDoc(doc(db, "users", uid), {
-          verificationStatus: "rejected",
-          verified: false,
-          updatedAt: serverTimestamp(),
-        }),
-        updateDoc(doc(db, "verifications", uid), {
-          status: "rejected",
-          reviewedAt: serverTimestamp(),
-        }),
-      ]);
-      await fetchData();
-    } catch (err) {
-      alert("Error rejecting user");
-    } finally {
-      setActionLoading(null);
-    }
+  const updateStatus = async (uid: string, status: 'verified' | 'rejected') => {
+    setActionLoading(uid + status);
+    await updateDoc(doc(db, 'users', uid), { verificationStatus: status });
+    setUsers((prev) =>
+      prev.map((u) => (u.uid === uid ? { ...u, verificationStatus: status } : u))
+    );
+    setActionLoading(null);
   };
 
-  const filteredUsers = users.filter((u) => {
+  const filtered = users.filter((u) => {
     const matchSearch =
-      (u.displayName?.toLowerCase().includes(search.toLowerCase()) ||
-        u.email?.toLowerCase().includes(search.toLowerCase()) ||
-        u.uid.includes(search));
-    const matchFilter = filter === "all" || u.verificationStatus === filter;
+      u.email?.toLowerCase().includes(search.toLowerCase()) ||
+      u.displayName?.toLowerCase().includes(search.toLowerCase()) ||
+      u.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+      u.uid?.toLowerCase().includes(search.toLowerCase());
+    const matchFilter = filter === 'all' || u.verificationStatus === filter;
     return matchSearch && matchFilter;
   });
 
-  const stats = {
+  const counts = {
     total: users.length,
-    verified: users.filter((u) => u.verificationStatus === "approved").length,
-    pending: users.filter((u) => u.verificationStatus === "pending").length,
-    rejected: users.filter((u) => u.verificationStatus === "rejected").length,
-    notStarted: users.filter((u) => u.verificationStatus === "not_started").length,
+    verified: users.filter((u) => u.verificationStatus === 'verified').length,
+    pending: users.filter((u) => u.verificationStatus === 'pending').length,
+    rejected: users.filter((u) => u.verificationStatus === 'rejected').length,
   };
 
-  const statusBadge = (status: VerificationStatus) => {
-    const map: Record<VerificationStatus, string> = {
-      approved: "bg-green-500/20 text-green-400 border border-green-500/30",
-      pending: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30",
-      rejected: "bg-red-500/20 text-red-400 border border-red-500/30",
-      not_started: "bg-gray-500/20 text-gray-400 border border-gray-500/30",
+  const statusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      verified: 'bg-green-100 text-green-800',
+      pending: 'bg-yellow-100 text-yellow-800',
+      rejected: 'bg-red-100 text-red-800',
     };
-    return map[status] || map.not_started;
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${styles[status] || 'bg-gray-100 text-gray-600'}`}>
+        {status}
+      </span>
+    );
   };
 
-  if (!isAdmin) {
+  if (loading) {
     return (
-      <ProtectedRoute>
-        <Navbar />
-        <main className="flex items-center justify-center min-h-screen">
-          <GlassCard className="text-center max-w-md">
-            <div className="text-5xl mb-4">🚫</div>
-            <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
-            <p className="text-gray-400">You do not have admin privileges.</p>
-          </GlassCard>
-        </main>
-      </ProtectedRoute>
+      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+        <div className="text-white text-xl animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!authorized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+        <div className="text-center text-white">
+          <div className="text-6xl mb-4">🚫</div>
+          <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
+          <p className="text-gray-400">Only admins can access this page.</p>
+          <button onClick={() => router.push('/')} className="mt-6 px-4 py-2 bg-indigo-600 rounded-lg hover:bg-indigo-700">
+            Go Home
+          </button>
+        </div>
+      </div>
     );
   }
 
   return (
-    <ProtectedRoute>
-      <Navbar />
-      <main className="max-w-6xl mx-auto p-4 pt-24">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">⚙️ Admin Dashboard</h1>
-            <p className="text-gray-400 mt-1">WildSaura Identity — User Management</p>
+    <div className="min-h-screen bg-gray-950 text-white p-6">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">🛡️ Admin Dashboard</h1>
+        <p className="text-gray-400 mt-1">identity.wildsaura.com — User Verification Management</p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {[
+          { label: 'Total Users', value: counts.total, color: 'bg-indigo-600', emoji: '👥' },
+          { label: 'Verified', value: counts.verified, color: 'bg-green-600', emoji: '✅' },
+          { label: 'Pending', value: counts.pending, color: 'bg-yellow-500', emoji: '⏳' },
+          { label: 'Rejected', value: counts.rejected, color: 'bg-red-600', emoji: '❌' },
+        ].map((stat) => (
+          <div key={stat.label} className={`${stat.color} rounded-xl p-4 text-center`}>
+            <div className="text-3xl mb-1">{stat.emoji}</div>
+            <div className="text-3xl font-bold">{stat.value}</div>
+            <div className="text-sm opacity-80">{stat.label}</div>
           </div>
-          <button
-            onClick={fetchData}
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-semibold transition"
-          >
-            🔄 Refresh
-          </button>
-        </div>
+        ))}
+      </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          <GlassCard className="text-center py-4">
-            <div className="text-3xl font-bold text-white">{stats.total}</div>
-            <div className="text-sm text-gray-400 mt-1">Total Users</div>
-          </GlassCard>
-          <GlassCard className="text-center py-4 cursor-pointer hover:bg-white/10" onClick={() => setFilter("approved")}>
-            <div className="text-3xl font-bold text-green-400">{stats.verified}</div>
-            <div className="text-sm text-gray-400 mt-1">✅ Verified</div>
-          </GlassCard>
-          <GlassCard className="text-center py-4 cursor-pointer hover:bg-white/10" onClick={() => setFilter("pending")}>
-            <div className="text-3xl font-bold text-yellow-400">{stats.pending}</div>
-            <div className="text-sm text-gray-400 mt-1">⏳ Pending</div>
-          </GlassCard>
-          <GlassCard className="text-center py-4 cursor-pointer hover:bg-white/10" onClick={() => setFilter("rejected")}>
-            <div className="text-3xl font-bold text-red-400">{stats.rejected}</div>
-            <div className="text-sm text-gray-400 mt-1">❌ Rejected</div>
-          </GlassCard>
-        </div>
+      {/* Search & Filter */}
+      <div className="flex flex-col md:flex-row gap-3 mb-6">
+        <input
+          type="text"
+          placeholder="Search by name, email, or UID..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-indigo-500"
+        />
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
+        >
+          <option value="all">All Users</option>
+          <option value="pending">Pending</option>
+          <option value="verified">Verified</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <button
+          onClick={fetchUsers}
+          className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition"
+        >
+          🔄 Refresh
+        </button>
+      </div>
 
-        {/* Search & Filter */}
-        <GlassCard className="mb-6">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="text"
-              placeholder="🔍 Search by name, email, or UID..."
-              className="flex-1 bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-purple-500 text-sm"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <div className="flex gap-2">
-              {(["all", "pending", "approved", "rejected", "not_started"] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold transition capitalize ${
-                    filter === f
-                      ? "bg-purple-600 text-white"
-                      : "bg-white/5 text-gray-400 hover:bg-white/10"
-                  }`}
-                >
-                  {f === "not_started" ? "Not Started" : f}
-                </button>
-              ))}
-            </div>
-          </div>
-        </GlassCard>
-
-        {/* Users Table */}
-        <GlassCard>
-          <h2 className="text-lg font-semibold mb-4">
-            Users ({filteredUsers.length})
-          </h2>
-
-          {loading ? (
-            <div className="text-center py-12 text-gray-400">Loading users...</div>
-          ) : filteredUsers.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">No users found.</div>
-          ) : (
-            <div className="space-y-3">
-              {filteredUsers.map((u) => {
-                const verif = verifications[u.uid];
-                const isExpanded = selectedUser === u.uid;
-                return (
-                  <div key={u.uid} className="bg-white/5 rounded-xl overflow-hidden">
-                    {/* User Row */}
-                    <div
-                      className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 cursor-pointer hover:bg-white/5 transition"
-                      onClick={() => setSelectedUser(isExpanded ? null : u.uid)}
-                    >
-                      {/* Avatar */}
-                      <img
-                        src={u.photoURL || "/default-avatar.png"}
-                        alt=""
-                        className="w-10 h-10 rounded-full border border-white/10 flex-shrink-0"
-                      />
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">
-                          {u.displayName || verif?.fullName || "—"}
-                        </p>
-                        <p className="text-xs text-gray-400 truncate">{u.email || u.uid}</p>
-                      </div>
-                      {/* Status Badge */}
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusBadge(u.verificationStatus)}`}>
-                        {u.verificationStatus.replace("_", " ")}
-                      </span>
-                      {/* Actions */}
-                      {u.verificationStatus === "pending" && (
+      {/* Users Table */}
+      <div className="bg-gray-900 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-800 text-gray-400 text-sm">
+              <tr>
+                <th className="text-left px-4 py-3">User</th>
+                <th className="text-left px-4 py-3">Email</th>
+                <th className="text-left px-4 py-3">Status</th>
+                <th className="text-left px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="text-center py-10 text-gray-500">No users found</td>
+                </tr>
+              )}
+              {filtered.map((user) => (
+                <>
+                  <tr
+                    key={user.uid}
+                    className="hover:bg-gray-800 cursor-pointer transition"
+                    onClick={() => setExpandedUid(expandedUid === user.uid ? null : user.uid)}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{user.displayName || user.fullName || '—'}</div>
+                      <div className="text-xs text-gray-500">{user.uid.slice(0, 12)}...</div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-300">{user.email}</td>
+                    <td className="px-4 py-3">{statusBadge(user.verificationStatus)}</td>
+                    <td className="px-4 py-3">
+                      {user.verificationStatus === 'pending' && (
                         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                           <button
-                            onClick={() => handleApprove(u.uid)}
-                            disabled={!!actionLoading}
-                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg text-xs font-semibold disabled:opacity-50 transition"
+                            onClick={() => updateStatus(user.uid, 'verified')}
+                            disabled={actionLoading === user.uid + 'verified'}
+                            className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded-lg text-xs font-semibold disabled:opacity-50 transition"
                           >
-                            {actionLoading === u.uid + "_approve" ? "..." : "✅ Approve"}
+                            {actionLoading === user.uid + 'verified' ? '...' : '✅ Approve'}
                           </button>
                           <button
-                            onClick={() => handleReject(u.uid)}
-                            disabled={!!actionLoading}
-                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-semibold disabled:opacity-50 transition"
+                            onClick={() => updateStatus(user.uid, 'rejected')}
+                            disabled={actionLoading === user.uid + 'rejected'}
+                            className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-semibold disabled:opacity-50 transition"
                           >
-                            {actionLoading === u.uid + "_reject" ? "..." : "❌ Reject"}
+                            {actionLoading === user.uid + 'rejected' ? '...' : '❌ Reject'}
                           </button>
                         </div>
                       )}
-                      <span className="text-gray-600 text-sm">{isExpanded ? "▲" : "▼"}</span>
-                    </div>
-
-                    {/* Expanded Details */}
-                    {isExpanded && (
-                      <div className="border-t border-white/10 p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <p className="text-gray-400 text-xs mb-1">UID</p>
-                          <p className="font-mono text-xs text-gray-300 break-all">{u.uid}</p>
+                      {user.verificationStatus !== 'pending' && (
+                        <span className="text-xs text-gray-500">—</span>
+                      )}
+                    </td>
+                  </tr>
+                  {expandedUid === user.uid && (
+                    <tr key={user.uid + '-expanded'} className="bg-gray-800">
+                      <td colSpan={4} className="px-6 py-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <div className="text-gray-400 text-xs mb-1">Full Name</div>
+                            <div>{user.fullName || '—'}</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-400 text-xs mb-1">Country</div>
+                            <div>{user.country || '—'}</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-400 text-xs mb-1">Submitted At</div>
+                            <div>{user.submittedAt?.toDate?.()?.toLocaleString() || '—'}</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-400 text-xs mb-1">Document</div>
+                            {user.documentURL ? (
+                              <a href={user.documentURL} target="_blank" rel="noreferrer" className="text-indigo-400 underline">View Document</a>
+                            ) : '—'}
+                          </div>
                         </div>
-                        {verif?.fullName && (
-                          <div>
-                            <p className="text-gray-400 text-xs mb-1">Full Name</p>
-                            <p>{verif.fullName}</p>
-                          </div>
-                        )}
-                        {verif?.country && (
-                          <div>
-                            <p className="text-gray-400 text-xs mb-1">Country</p>
-                            <p>{verif.country}</p>
-                          </div>
-                        )}
-                        {verif?.documentUrl && (
-                          <div>
-                            <p className="text-gray-400 text-xs mb-1">Document</p>
-                            <a
-                              href={verif.documentUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-purple-400 underline text-xs"
-                            >
-                              View Document 🔗
-                            </a>
-                          </div>
-                        )}
-                        {verif?.submittedAt && (
-                          <div>
-                            <p className="text-gray-400 text-xs mb-1">Submitted</p>
-                            <p className="text-xs">
-                              {verif.submittedAt?.toDate?.()?.toLocaleString() || "—"}
-                            </p>
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-gray-400 text-xs mb-1">Connected Apps</p>
-                          <p className="text-xs">
-                            {Object.keys(u.connectedApps || {}).length || 0} app(s)
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </GlassCard>
-      </main>
-    </ProtectedRoute>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   );
 }
