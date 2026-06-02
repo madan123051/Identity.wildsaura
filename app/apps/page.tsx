@@ -1,47 +1,61 @@
-'use client';
+"use client";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import Navbar from "@/components/Navbar";
+import GlassCard from "@/components/GlassCard";
+import { useAuth } from "@/lib/authContext";
+import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
-import ProtectedRoute from '@/components/ProtectedRoute';
-import GlassCard from '@/components/GlassCard';
-
-const connectedApps = [
-  { name: 'WildSaura Main', domain: 'wildsaura.com', icon: '🌿', status: 'active' },
-  { name: 'WildSaura Dashboard', domain: 'app.wildsaura.com', icon: '📊', status: 'active' },
-  { name: 'WildSaura Docs', domain: 'docs.wildsaura.com', icon: '📚', status: 'coming_soon' },
+const APPS = [
+  { id: "market", name: "Market", url: "https://market.wildsaura.com" },
+  { id: "drishya", name: "Drishya", url: "https://drishya.wildsaura.com" },
+  { id: "community", name: "Community", url: "https://community.wildsaura.com" },
+  { id: "creator", name: "Creator Hub", url: "https://creator.wildsaura.com" },
 ];
 
 export default function AppsPage() {
+  const { user } = useAuth();
+  const [connected, setConnected] = useState<{ [key: string]: boolean }>({});
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists()) {
+        setConnected(snap.data().connectedApps || {});
+      }
+    })();
+  }, [user]);
+
   return (
     <ProtectedRoute>
-      <div style={{ maxWidth: 700, margin: '0 auto', padding: '40px 24px' }}>
-        <h1 style={{ fontSize: 30, fontWeight: 800, marginBottom: 8 }}>Connected Apps</h1>
-        <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: 32 }}>
-          Apps linked to your WildSaura Identity
-        </p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {connectedApps.map((app) => (
-            <GlassCard key={app.name} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <span style={{ fontSize: 32 }}>{app.icon}</span>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontWeight: 700 }}>{app.name}</p>
-                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>{app.domain}</p>
-              </div>
-              <span
-                style={{
-                  fontSize: 12,
-                  padding: '4px 12px',
-                  borderRadius: 20,
-                  background: app.status === 'active' ? 'rgba(0,255,136,0.12)' : 'rgba(255,255,255,0.07)',
-                  color: app.status === 'active' ? '#00ff88' : 'rgba(255,255,255,0.4)',
-                  border: `1px solid ${app.status === 'active' ? 'rgba(0,255,136,0.3)' : 'rgba(255,255,255,0.1)'}`,
-                }}
+      <Navbar />
+      <main className="max-w-xl mx-auto p-4 pt-24">
+        <GlassCard>
+          <h1 className="text-2xl font-bold mb-4">Connected Apps</h1>
+          <p className="text-gray-400 text-sm mb-6">
+            Apps you have used with your WildSaura identity.
+          </p>
+          <div className="space-y-3">
+            {APPS.map((app) => (
+              <div
+                key={app.id}
+                className="flex justify-between items-center p-3 bg-white/5 rounded-lg"
               >
-                {app.status === 'active' ? 'Active' : 'Coming Soon'}
-              </span>
-            </GlassCard>
-          ))}
-        </div>
-      </div>
+                <span>{app.name}</span>
+                <span>
+                  {connected[app.id] ? (
+                    <span className="text-green-400">✔ Connected</span>
+                  ) : (
+                    <span className="text-gray-500">— Not yet</span>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      </main>
     </ProtectedRoute>
   );
 }

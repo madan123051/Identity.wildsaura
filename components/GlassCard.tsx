@@ -1,18 +1,12 @@
-import React from 'react';
-
-interface GlassCardProps {
+export default function GlassCard({
+  children,
+  className = "",
+}: {
   children: React.ReactNode;
   className?: string;
-  onClick?: () => void;
-}
-
-export default function GlassCard({ children, className = '', onClick }: GlassCardProps) {
+}) {
   return (
-    <div
-      className={`glass-card p-6 ${className}`}
-      onClick={onClick}
-      style={{ cursor: onClick ? 'pointer' : 'default' }}
-    >
+    <div className={`glass-card ${className}`}>
       {children}
     </div>
   );

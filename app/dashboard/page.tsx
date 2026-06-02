@@ -1,59 +1,90 @@
-'use client';
+"use client";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import Navbar from "@/components/Navbar";
+import GlassCard from "@/components/GlassCard";
+import { useAuth } from "@/lib/authContext";
+import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import Link from "next/link";
 
-import ProtectedRoute from '@/components/ProtectedRoute';
-import GlassCard from '@/components/GlassCard';
-import { useAuth } from '@/lib/authContext';
-import Link from 'next/link';
-
-const quickLinks = [
-  { href: '/apps', icon: '🔗', label: 'Connected Apps' },
-  { href: '/security', icon: '🛡️', label: 'Security' },
-  { href: '/verify', icon: '✅', label: 'Verification' },
-  { href: '/status', icon: '📊', label: 'Account Status' },
-];
+type UserData = {
+  displayName?: string;
+  photoURL?: string;
+  verified?: boolean;
+  verificationStatus?: "not_started" | "pending" | "approved" | "rejected";
+  connectedApps?: { [key: string]: boolean };
+};
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const [userData, setUserData] = useState<UserData | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchUser = async () => {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists()) setUserData(snap.data() as UserData);
+    };
+    fetchUser();
+  }, [user]);
+
+  const status = userData?.verificationStatus || "not_started";
+  const statusColors = {
+    not_started: "text-gray-400",
+    pending: "text-yellow-400",
+    approved: "text-green-400",
+    rejected: "text-red-400",
+  };
 
   return (
     <ProtectedRoute>
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 24px' }}>
-        <h1 style={{ fontSize: 32, fontWeight: 800, marginBottom: 8 }}>
-          Hello, <span style={{ color: '#00ff88' }}>{user?.displayName || user?.email?.split('@')[0]} 👋</span>
-        </h1>
-        <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: 40 }}>Your WildSaura Identity Dashboard</p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16 }}>
-          {quickLinks.map((link) => (
-            <Link key={link.href} href={link.href} style={{ textDecoration: 'none' }}>
-              <GlassCard className="text-center" style={{ cursor: 'pointer' }}>
-                <div style={{ fontSize: 32, marginBottom: 12 }}>{link.icon}</div>
-                <p style={{ fontWeight: 600, fontSize: 14 }}>{link.label}</p>
-              </GlassCard>
-            </Link>
-          ))}
-        </div>
-
-        <GlassCard style={{ marginTop: 32 }}>
-          <h2 style={{ fontWeight: 700, marginBottom: 16, color: '#00ff88' }}>Account Info</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'rgba(255,255,255,0.5)' }}>Email</span>
-              <span>{user?.email}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'rgba(255,255,255,0.5)' }}>Verified</span>
-              <span style={{ color: user?.emailVerified ? '#00ff88' : '#ff6b6b' }}>
-                {user?.emailVerified ? '✅ Yes' : '❌ No'}
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'rgba(255,255,255,0.5)' }}>UID</span>
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{user?.uid}</span>
+      <Navbar />
+      <main className="max-w-4xl mx-auto p-4 pt-24">
+        <GlassCard className="mb-8">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <img
+              src={user?.photoURL || "/default-avatar.png"}
+              alt="avatar"
+              className="w-20 h-20 rounded-full border-2 border-purple-500"
+            />
+            <div>
+              <h2 className="text-2xl font-bold">
+                {userData?.displayName || user?.email}
+              </h2>
+              <p className={`text-sm font-medium ${statusColors[status]}`}>
+                Verification: {status.replace("_", " ")}
+              </p>
             </div>
           </div>
         </GlassCard>
-      </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <Link href="/verify">
+            <GlassCard className="hover:bg-white/10 transition cursor-pointer text-center">
+              <div className="text-3xl mb-2">🛡️</div>
+              <h3 className="font-semibold">Verify Identity</h3>
+            </GlassCard>
+          </Link>
+          <Link href="/security">
+            <GlassCard className="hover:bg-white/10 transition cursor-pointer text-center">
+              <div className="text-3xl mb-2">🔐</div>
+              <h3 className="font-semibold">Security</h3>
+            </GlassCard>
+          </Link>
+          <Link href="/apps">
+            <GlassCard className="hover:bg-white/10 transition cursor-pointer text-center">
+              <div className="text-3xl mb-2">🔗</div>
+              <h3 className="font-semibold">Connected Apps</h3>
+            </GlassCard>
+          </Link>
+        </div>
+
+        <GlassCard>
+          <h3 className="text-lg font-semibold mb-3">Recent Activity</h3>
+          <p className="text-gray-400 text-sm">No recent activity yet.</p>
+        </GlassCard>
+      </main>
     </ProtectedRoute>
   );
 }

@@ -1,91 +1,70 @@
-'use client';
-
-import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  sendEmailVerification,
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { getSafeRedirectUrl } from '@/lib/redirect';
-import GlassCard from '@/components/GlassCard';
+"use client";
+import { useState } from "react";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
+import GlassCard from "@/components/GlassCard";
 
 export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
+    setError("");
     try {
       if (isSignUp) {
-        const { user } = await createUserWithEmailAndPassword(auth, email, password);
-        await sendEmailVerification(user);
-        router.push('/verify');
+        await createUserWithEmailAndPassword(auth, email, password);
       } else {
         await signInWithEmailAndPassword(auth, email, password);
-        const redirect = getSafeRedirectUrl(searchParams.get('redirect'));
-        router.push(redirect || '/dashboard');
       }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Authentication failed');
-    } finally {
-      setLoading(false);
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message);
     }
   };
 
   return (
-    <div style={{ minHeight: '85vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <GlassCard style={{ width: '100%', maxWidth: 420 }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🌿</div>
-          <h1 style={{ fontSize: 26, fontWeight: 800 }}>
-            {isSignUp ? 'Create Account' : 'Welcome Back'}
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: 6 }}>
-            WildSaura Identity
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <GlassCard className="w-full max-w-md">
+        <h1 className="text-3xl font-bold text-center mb-2">WildSaura</h1>
+        <p className="text-gray-400 text-center mb-6">
+          {isSignUp ? "Create your identity" : "Sign in to your identity"}
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input
-            className="input-field"
             type="email"
-            placeholder="Email address"
+            placeholder="Email"
+            className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-purple-500"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
           <input
-            className="input-field"
             type="password"
             placeholder="Password"
+            className="w-full bg-white/5 border border-white/10 rounded-lg p-3 outline-none focus:border-purple-500"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          {error && <p style={{ color: '#ff6b6b', fontSize: 13 }}>{error}</p>}
-          <button className="btn-primary" type="submit" disabled={loading}>
-            {loading ? '...' : isSignUp ? 'Create Account' : 'Sign In'}
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <button
+            type="submit"
+            className="w-full py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition"
+          >
+            {isSignUp ? "Create Account" : "Sign In"}
           </button>
         </form>
-
-        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>
-          {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <span
-            onClick={() => setIsSignUp(!isSignUp)}
-            style={{ color: '#00ff88', cursor: 'pointer', fontWeight: 600 }}
-          >
-            {isSignUp ? 'Sign In' : 'Sign Up'}
-          </span>
-        </p>
+        <button
+          className="mt-4 text-sm text-gray-400 hover:text-white w-full text-center"
+          onClick={() => setIsSignUp(!isSignUp)}
+        >
+          {isSignUp ? "Already have an account? Sign in" : "New here? Create account"}
+        </button>
       </GlassCard>
     </div>
   );
