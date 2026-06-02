@@ -6,7 +6,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Navbar from "@/components/Navbar";
 import GlassCard from "@/components/GlassCard";
 import { db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { submitVerificationRequest } from "@/lib/verification";
 import { validateReturnUrl } from "@/lib/redirect";
 
 const STEPS = ["Personal Details", "Country", "Upload Document", "Review"];
@@ -32,23 +32,11 @@ function VerifyContent() {
     if (!user) return;
     setSubmitting(true);
     try {
-      const userRef = doc(db, "users", user.uid);
-      await setDoc(userRef, {
-        displayName: form.fullName,
-        verificationStatus: "pending",
-        verified: false,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
-
-      const verifRef = doc(db, "verifications", user.uid);
-      await setDoc(verifRef, {
-        uid: user.uid,
+      await submitVerificationRequest(db, user.uid, {
         fullName: form.fullName,
         country: form.country,
         documentUrl: form.documentUrl,
-        status: "pending",
-        submittedAt: serverTimestamp(),
-        reviewedAt: null,
+        email: user.email,
       });
 
       const safeUrl = validateReturnUrl(returnUrl);

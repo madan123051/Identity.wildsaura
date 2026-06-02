@@ -10,11 +10,11 @@ Central **authentication, identity & verification** hub for all WildSaura apps (
 
 | Field | Value |
 |-------|-------|
-| **Admin Email** | `madan123050@gmail.com` |
 | **Admin Dashboard** | `/admin` |
-| **Auth Guard** | `lib/authContext.tsx` → `ADMIN_EMAIL` constant |
+| **Auth Guard** | Firebase ID token custom claims |
+| **Required Claims** | `admin: true` or `verificationReviewer: true` |
 
-Only the admin email can access the `/admin` verification dashboard.
+Admin access is controlled by Firebase custom claims. The previous hardcoded admin-email gate has been removed from runtime guards.
 
 ---
 
@@ -65,7 +65,7 @@ components/
 lib/
 ├── firebase.ts                 # Firebase initialization (shared)
 ├── firebaseClient.ts           # Firebase client (getDb/getAuth/getStorage)
-├── authContext.tsx             # useAuth hook + AuthProvider + ADMIN_EMAIL
+├── authContext.tsx             # useAuth hook + AuthProvider + custom claims
 ├── referral.ts                 # Referral code logic
 └── redirect.ts                 # Secure cross-app redirect (allowlist)
 ```
@@ -116,39 +116,39 @@ npm run dev
 
 ## 🗄️ Firestore Schema
 
+Identity keeps the existing collections and now treats `users/{uid}` as the canonical Identity record while continuing to synchronize legacy Drishya-compatible fields in `profiles/{uid}` and verification workflow data in `verifications/{uid}`.
+
+Canonical verification statuses:
+
 ```
-users/{uid}
-  - displayName: string
-  - photoURL: string
-  - verified: boolean
-  - verificationStatus: "pending" | "verified" | "rejected" | "none"
-  - connectedApps: string[]
-  - createdAt: Timestamp
-  - updatedAt: Timestamp
-
-verifications/{uid}
-  - uid: string
-  - fullName: string
-  - country: string
-  - documentUrl: string
-  - status: "pending" | "verified" | "rejected"
-  - submittedAt: Timestamp
-  - reviewedAt: Timestamp | null
-
-profiles/{uid}
-  - username: string
-  - display_name: string
-  - email: string
-  - phone: string
-  - province: string
-  - date_of_birth: string
-  - gender: string
-  - terms_accepted: boolean
-  - verification_status: string
-  - is_verified: boolean
+not_started
+pending
+verified
+rejected
 ```
 
----
+Legacy status mappings:
+
+```
+approved -> verified
+none -> not_started
+null/missing -> not_started
+```
+
+Current collections:
+
+```
+users/{uid}                         # Canonical profile, verification, connected apps
+users/{uid}/sessions/{sessionId}     # Scoped Identity sessions
+profiles/{uid}                      # Legacy Drishya-compatible profile mirror
+verifications/{uid}                 # Verification request/document state
+verifications/{uid}/auditLogs/{id}   # Verification reviewer audit logs
+usernames/{username}                # Username uniqueness index
+referrals/{id}                      # Drishya referral tracking
+```
+
+See `docs/FIRESTORE_SCHEMA.md` for the detailed transition schema.
+
 
 ## 🔗 Allowed Redirect Domains (4-site Ecosystem)
 
@@ -156,6 +156,7 @@ profiles/{uid}
 market.wildsaura.com
 drishya.wildsaura.com
 community.wildsaura.com
+creator.wildsaura.com
 identity.wildsaura.com
 wildsaura.com
 ```

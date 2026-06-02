@@ -5,30 +5,18 @@ import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/authContext';
 import { AdminRoute } from '@/components/ProtectedRoute';
-import {
-  collection,
-  getDocs,
-  doc,
-  updateDoc,
-  query,
-  orderBy,
-} from 'firebase/firestore';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { IdentityProfile, mergeIdentityProfile, normalizeVerificationStatus } from '@/lib/identity';
+import { syncVerificationStatus } from '@/lib/verification';
 
-interface UserData {
-  uid: string;
-  email: string;
-  displayName?: string;
+type AdminUser = IdentityProfile & {
   fullName?: string;
-  country?: string;
-  documentURL?: string;
-  verificationStatus: 'pending' | 'verified' | 'rejected' | string;
-  submittedAt?: any;
-}
+};
 
 function AdminDashboardInner() {
-  const { user } = useAuth();
+  const { user, canReviewVerification, claims } = useAuth();
   const router = useRouter();
-  const [users, setUsers] = useState<UserData[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
@@ -42,26 +30,50 @@ function AdminDashboardInner() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'users'), orderBy('submittedAt', 'desc'));
-      const snapshot = await getDocs(q);
-      const data = snapshot.docs.map((d) => ({ uid: d.id, ...d.data() } as UserData));
-      setUsers(data);
-    } catch {
-      const snapshot = await getDocs(collection(db, 'users'));
-      const data = snapshot.docs.map((d) => ({ uid: d.id, ...d.data() } as UserData));
-      setUsers(data);
+      const byUid = new Map<string, { userData?: any; profileData?: any; verificationData?: any }>();
+
+      const [usersSnap, profilesSnap, verificationsSnap] = await Promise.all([
+        getDocs(query(collection(db, 'users'), orderBy('updatedAt', 'desc'))).catch(() => getDocs(collection(db, 'users'))),
+        getDocs(collection(db, 'profiles')),
+        getDocs(collection(db, 'verifications')),
+      ]);
+
+      usersSnap.docs.forEach((d) => {
+        byUid.set(d.id, { ...(byUid.get(d.id) || {}), userData: d.data() });
+      });
+      profilesSnap.docs.forEach((d) => {
+        byUid.set(d.id, { ...(byUid.get(d.id) || {}), profileData: d.data() });
+      });
+      verificationsSnap.docs.forEach((d) => {
+        byUid.set(d.id, { ...(byUid.get(d.id) || {}), verificationData: d.data() });
+      });
+
+      const data = Array.from(byUid.entries()).map(([uid, record]) => ({
+        ...mergeIdentityProfile({ uid, ...record }),
+        fullName: record.verificationData?.fullName || record.userData?.fullName,
+        country: record.verificationData?.country || record.userData?.country || record.profileData?.country,
+      }));
+
+      setUsers(data.sort((a, b) => (b.updatedAt?.seconds || b.submittedAt?.seconds || 0) - (a.updatedAt?.seconds || a.submittedAt?.seconds || 0)));
     } finally {
       setLoading(false);
     }
   };
 
   const updateStatus = async (uid: string, status: 'verified' | 'rejected') => {
+    if (!canReviewVerification) {
+      alert('You do not have permission to review verifications.');
+      return;
+    }
     setActionLoading(uid + status);
-    await updateDoc(doc(db, 'users', uid), { verificationStatus: status });
-    setUsers((prev) =>
-      prev.map((u) => (u.uid === uid ? { ...u, verificationStatus: status } : u))
-    );
-    setActionLoading(null);
+    try {
+      await syncVerificationStatus(db, uid, status, { uid: user?.uid, email: user?.email });
+      setUsers((prev) =>
+        prev.map((u) => (u.uid === uid ? { ...u, verificationStatus: status, verified: status === 'verified' } : u))
+      );
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const filtered = users.filter((u) => {
@@ -69,31 +81,31 @@ function AdminDashboardInner() {
       u.email?.toLowerCase().includes(search.toLowerCase()) ||
       u.displayName?.toLowerCase().includes(search.toLowerCase()) ||
       u.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+      u.username?.toLowerCase().includes(search.toLowerCase()) ||
       u.uid?.toLowerCase().includes(search.toLowerCase());
-    const matchFilter = filter === 'all' || u.verificationStatus === filter;
+    const normalizedStatus = normalizeVerificationStatus(u.verificationStatus, u.verified);
+    const matchFilter = filter === 'all' || normalizedStatus === filter;
     return matchSearch && matchFilter;
   });
 
   const counts = {
     total: users.length,
-    verified: users.filter((u) => u.verificationStatus === 'verified').length,
-    pending: users.filter((u) => u.verificationStatus === 'pending').length,
-    rejected: users.filter((u) => u.verificationStatus === 'rejected').length,
+    verified: users.filter((u) => normalizeVerificationStatus(u.verificationStatus, u.verified) === 'verified').length,
+    pending: users.filter((u) => normalizeVerificationStatus(u.verificationStatus, u.verified) === 'pending').length,
+    rejected: users.filter((u) => normalizeVerificationStatus(u.verificationStatus, u.verified) === 'rejected').length,
   };
 
-  const statusBadge = (status: string) => {
+  const statusBadge = (status: string, verified?: boolean) => {
+    const normalized = normalizeVerificationStatus(status, verified);
     const styles: Record<string, string> = {
       verified: 'bg-green-100 text-green-800',
       pending: 'bg-yellow-100 text-yellow-800',
       rejected: 'bg-red-100 text-red-800',
+      not_started: 'bg-gray-100 text-gray-600',
     };
     return (
-      <span
-        className={`px-2 py-1 rounded-full text-xs font-semibold ${
-          styles[status] || 'bg-gray-100 text-gray-600'
-        }`}
-      >
-        {status}
+      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${styles[normalized]}`}>
+        {normalized.replace('_', ' ')}
       </span>
     );
   };
@@ -108,24 +120,19 @@ function AdminDashboardInner() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
-      {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">🛡️ Admin Dashboard</h1>
-          <p className="text-gray-400 mt-1">
-            identity.wildsaura.com — User Verification Management
+          <p className="text-gray-400 mt-1">identity.wildsaura.com — User Verification Management</p>
+          <p className="text-indigo-400 text-sm mt-1">
+            Logged in as: {user?.email} • Claims: {claims.admin ? 'admin' : claims.verificationReviewer ? 'verificationReviewer' : 'none'}
           </p>
-          <p className="text-indigo-400 text-sm mt-1">Logged in as: {user?.email}</p>
         </div>
-        <button
-          onClick={() => router.push('/')}
-          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition"
-        >
+        <button onClick={() => router.push('/')} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition">
           ← Back to Home
         </button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
           { label: 'Total Users', value: counts.total, color: 'bg-indigo-600', emoji: '👥' },
@@ -141,11 +148,10 @@ function AdminDashboardInner() {
         ))}
       </div>
 
-      {/* Search & Filter */}
       <div className="flex flex-col md:flex-row gap-3 mb-6">
         <input
           type="text"
-          placeholder="Search by name, email, or UID..."
+          placeholder="Search by name, email, username, or UID..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-indigo-500"
@@ -156,19 +162,16 @@ function AdminDashboardInner() {
           className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
         >
           <option value="all">All Users</option>
+          <option value="not_started">Not Started</option>
           <option value="pending">Pending</option>
           <option value="verified">Verified</option>
           <option value="rejected">Rejected</option>
         </select>
-        <button
-          onClick={fetchUsers}
-          className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition"
-        >
+        <button onClick={fetchUsers} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg transition">
           🔄 Refresh
         </button>
       </div>
 
-      {/* Users Table */}
       <div className="bg-gray-900 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -183,84 +186,55 @@ function AdminDashboardInner() {
             <tbody className="divide-y divide-gray-800">
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="text-center py-10 text-gray-500">
-                    No users found
-                  </td>
+                  <td colSpan={4} className="text-center py-10 text-gray-500">No users found</td>
                 </tr>
               )}
-              {filtered.map((u) => (
-                <>
-                  <tr
-                    key={u.uid}
-                    className="hover:bg-gray-800 cursor-pointer transition"
-                    onClick={() => setExpandedUid(expandedUid === u.uid ? null : u.uid)}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{u.displayName || u.fullName || '—'}</div>
-                      <div className="text-xs text-gray-500">{u.uid.slice(0, 12)}...</div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-300">{u.email}</td>
-                    <td className="px-4 py-3">{statusBadge(u.verificationStatus)}</td>
-                    <td className="px-4 py-3">
-                      {u.verificationStatus === 'pending' ? (
-                        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => updateStatus(u.uid, 'verified')}
-                            disabled={actionLoading === u.uid + 'verified'}
-                            className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded-lg text-xs font-semibold disabled:opacity-50 transition"
-                          >
-                            {actionLoading === u.uid + 'verified' ? '...' : '✅ Approve'}
-                          </button>
-                          <button
-                            onClick={() => updateStatus(u.uid, 'rejected')}
-                            disabled={actionLoading === u.uid + 'rejected'}
-                            className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-semibold disabled:opacity-50 transition"
-                          >
-                            {actionLoading === u.uid + 'rejected' ? '...' : '❌ Reject'}
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-500">—</span>
-                      )}
-                    </td>
-                  </tr>
-                  {expandedUid === u.uid && (
-                    <tr key={u.uid + '-expanded'} className="bg-gray-800">
-                      <td colSpan={4} className="px-6 py-4">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div>
-                            <div className="text-gray-400 text-xs mb-1">Full Name</div>
-                            <div>{u.fullName || '—'}</div>
+              {filtered.map((u) => {
+                const normalizedStatus = normalizeVerificationStatus(u.verificationStatus, u.verified);
+                return (
+                  <>
+                    <tr key={u.uid} className="hover:bg-gray-800 cursor-pointer transition" onClick={() => setExpandedUid(expandedUid === u.uid ? null : u.uid)}>
+                      <td className="px-4 py-3">
+                        <div className="font-medium">{u.displayName || u.fullName || u.username || '—'}</div>
+                        <div className="text-xs text-gray-500">{u.uid.slice(0, 12)}... • {u.source}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-300">{u.email || '—'}</td>
+                      <td className="px-4 py-3">{statusBadge(u.verificationStatus, u.verified)}</td>
+                      <td className="px-4 py-3">
+                        {normalizedStatus === 'pending' ? (
+                          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                            <button onClick={() => updateStatus(u.uid, 'verified')} disabled={actionLoading === u.uid + 'verified'} className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded-lg text-xs font-semibold disabled:opacity-50 transition">
+                              {actionLoading === u.uid + 'verified' ? '...' : '✅ Approve'}
+                            </button>
+                            <button onClick={() => updateStatus(u.uid, 'rejected')} disabled={actionLoading === u.uid + 'rejected'} className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-semibold disabled:opacity-50 transition">
+                              {actionLoading === u.uid + 'rejected' ? '...' : '❌ Reject'}
+                            </button>
                           </div>
-                          <div>
-                            <div className="text-gray-400 text-xs mb-1">Country</div>
-                            <div>{u.country || '—'}</div>
-                          </div>
-                          <div>
-                            <div className="text-gray-400 text-xs mb-1">Submitted At</div>
-                            <div>{u.submittedAt?.toDate?.()?.toLocaleString() || '—'}</div>
-                          </div>
-                          <div>
-                            <div className="text-gray-400 text-xs mb-1">Document</div>
-                            {u.documentURL ? (
-                              <a
-                                href={u.documentURL}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-indigo-400 underline"
-                              >
-                                View Document
-                              </a>
-                            ) : (
-                              '—'
-                            )}
-                          </div>
-                        </div>
+                        ) : (
+                          <span className="text-xs text-gray-500">—</span>
+                        )}
                       </td>
                     </tr>
-                  )}
-                </>
-              ))}
+                    {expandedUid === u.uid && (
+                      <tr key={u.uid + '-expanded'} className="bg-gray-800">
+                        <td colSpan={4} className="px-6 py-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <Detail label="Full Name" value={u.fullName || u.displayName || '—'} />
+                            <Detail label="Country" value={u.country || '—'} />
+                            <Detail label="Username" value={u.username || '—'} />
+                            <div>
+                              <div className="text-gray-400 text-xs mb-1">Document</div>
+                              {u.documentUrl ? (
+                                <a href={u.documentUrl} target="_blank" rel="noreferrer" className="text-indigo-400 underline">View Document</a>
+                              ) : '—'}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -269,7 +243,16 @@ function AdminDashboardInner() {
   );
 }
 
-export default function AdminDashboard() {
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-gray-400 text-xs mb-1">{label}</div>
+      <div>{value}</div>
+    </div>
+  );
+}
+
+export default function AdminPage() {
   return (
     <AdminRoute>
       <AdminDashboardInner />
