@@ -3,13 +3,14 @@ import { useRouter } from "next/navigation";
 import { AuthPage } from "@/components/auth";
 import { auth } from "@/lib/firebase";
 
+const ADMIN_EMAIL = "madan123050@gmail.com";
+
 export default function LoginPage() {
   const router = useRouter();
 
-  const handleAuthSuccess = async () => {
+  const handleAuthSuccess = () => {
     const user = auth.currentUser;
-    const claims = user ? (await user.getIdTokenResult(true)).claims : {};
-    if (claims.admin === true || claims.verificationReviewer === true) {
+    if (user?.email === ADMIN_EMAIL) {
       router.push("/admin");
     } else {
       router.push("/dashboard");

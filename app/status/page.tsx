@@ -4,35 +4,32 @@ import Navbar from "@/components/Navbar";
 import GlassCard from "@/components/GlassCard";
 import { useAuth } from "@/lib/authContext";
 import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { getIdentityProfile, type IdentityProfile } from "@/lib/identity";
-import { getVerificationLabel, type VerificationStatus } from "@/lib/verification";
-
-function formatDate(value: any) {
-  if (!value) return "—";
-  return value.toDate?.().toLocaleDateString?.() || value;
-}
 
 export default function StatusPage() {
   const { user } = useAuth();
-  const [identity, setIdentity] = useState<IdentityProfile | null>(null);
+  const [status, setStatus] = useState<string>("not_started");
+  const [verifData, setVerifData] = useState<any>(null);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      setIdentity(await getIdentityProfile(db, user));
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (userDoc.exists()) setStatus(userDoc.data().verificationStatus || "not_started");
+      const verifDoc = await getDoc(doc(db, "verifications", user.uid));
+      if (verifDoc.exists()) setVerifData(verifDoc.data());
     })();
   }, [user]);
 
-  const status = identity?.verificationStatus || "not_started";
-  const statusMap: Record<VerificationStatus, { color: string; icon: string; text: string }> = {
-    not_started: { color: "text-gray-400", icon: "⭕", text: getVerificationLabel("not_started") },
-    pending: { color: "text-yellow-400", icon: "⏳", text: getVerificationLabel("pending") },
-    verified: { color: "text-green-400", icon: "✅", text: getVerificationLabel("verified") },
-    rejected: { color: "text-red-400", icon: "❌", text: getVerificationLabel("rejected") },
+  const statusMap = {
+    not_started: { color: "text-gray-400", icon: "⭕", text: "Not Started" },
+    pending: { color: "text-yellow-400", icon: "⏳", text: "Pending" },
+    approved: { color: "text-green-400", icon: "✅", text: "Approved" },
+    rejected: { color: "text-red-400", icon: "❌", text: "Rejected" },
   };
 
-  const current = statusMap[status];
+  const current = statusMap[status as keyof typeof statusMap] || statusMap.not_started;
 
   return (
     <ProtectedRoute>
@@ -44,11 +41,14 @@ export default function StatusPage() {
             <span className="text-4xl">{current.icon}</span>
             <span className={`text-xl font-semibold ${current.color}`}>{current.text}</span>
           </div>
-          <div className="text-sm text-gray-400 space-y-1">
-            <p>Submitted: {formatDate(identity?.submittedAt)}</p>
-            <p>Reviewed: {formatDate(identity?.reviewedAt)}</p>
-            <p>Document: {identity?.documentUrl ? "Attached" : "Not attached"}</p>
-          </div>
+          {verifData && (
+            <div className="text-sm text-gray-400 space-y-1">
+              <p>Submitted: {verifData.submittedAt?.toDate().toLocaleDateString()}</p>
+              {verifData.reviewedAt && (
+                <p>Reviewed: {verifData.reviewedAt.toDate().toLocaleDateString()}</p>
+              )}
+            </div>
+          )}
         </GlassCard>
       </main>
     </ProtectedRoute>
