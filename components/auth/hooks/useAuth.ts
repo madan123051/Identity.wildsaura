@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getAuth, getDb } from '../../../lib/firebaseClient';
 import { claimReferral } from '../../../lib/referral';
+import { ensureIdentityRecordsForAuthUser } from '../../../lib/identity';
+import { registerConnectedApp } from '../../../lib/connectedApps';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -155,6 +157,26 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
       terms_accepted_at: serverTimestamp(),
       created_at: existingData.created_at || serverTimestamp(),
     });
+    await setDoc(doc(db, 'users', uid), {
+      uid,
+      email: data.email,
+      displayName: data.displayName,
+      photoURL: data.photoURL || existingData.avatar_url || '',
+      username: data.username.toLowerCase(),
+      phone: data.phone,
+      address: data.address,
+      province: data.province,
+      country: existingData.country || 'Nepal',
+      dateOfBirth: data.dateOfBirth,
+      gender: data.gender,
+      verified: existingData.is_verified || false,
+      verificationStatus: existingData.is_verified ? 'verified' : (existingData.verification_status === 'approved' ? 'verified' : existingData.verification_status === 'none' ? 'not_started' : existingData.verification_status || 'not_started'),
+      connectedApps: existingData.connectedApps || { identity: { connected: true, firstSeen: serverTimestamp(), lastSeen: serverTimestamp() } },
+      termsAccepted: true,
+      termsAcceptedAt: serverTimestamp(),
+      createdAt: existingData.created_at || serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
   };
 
   const validateSignupForm = (): string | null => {
@@ -220,6 +242,7 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
           localStorage.removeItem('drishya_pending_ref');
         }
       } catch { /* non-fatal */ }
+      await registerConnectedApp(db, uid, 'identity');
       onAuthSuccess();
     } catch (err: any) {
       const msg = err.message || 'Something went wrong';
@@ -248,7 +271,7 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
         const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
         if (profileSnap.exists()) {
           const profileData = profileSnap.data();
-          if (profileData.terms_accepted === true) { onAuthSuccess(); return; }
+          if (profileData.terms_accepted === true) { await ensureIdentityRecordsForAuthUser(db, user); await registerConnectedApp(db, user.uid, 'identity'); onAuthSuccess(); return; }
           prefillFromProfile(profileData, user);
           setError('कृपया पहिले दर्ता फारम पूरा गर्नुहोस् (Please complete registration first)');
           return;
@@ -297,6 +320,8 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
           return;
         }
       }
+      await ensureIdentityRecordsForAuthUser(db, user);
+      await registerConnectedApp(db, user.uid, 'identity');
       onAuthSuccess();
     } catch (err: any) {
       const msg = err.message || 'Login failed';
@@ -322,6 +347,11 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
       setGoogleUser(user);
       setSignupEmail(user.email || '');
       if (user.displayName) setFullName(user.displayName);
+      const db = getDb();
+      if (db) {
+        await ensureIdentityRecordsForAuthUser(db, user);
+        await registerConnectedApp(db, user.uid, 'identity');
+      }
       onAuthSuccess();
     } catch (err: any) {
       if (err.code !== 'auth/popup-closed-by-user') setError(err.message || 'Google login failed');

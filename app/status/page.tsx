@@ -4,32 +4,27 @@ import Navbar from "@/components/Navbar";
 import GlassCard from "@/components/GlassCard";
 import { useAuth } from "@/lib/authContext";
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { getIdentityProfile, IdentityProfile, formatFirebaseDate } from "@/lib/identity";
+
+const statusMap = {
+  not_started: { color: "text-gray-400", icon: "⭕", text: "Not Started" },
+  pending: { color: "text-yellow-400", icon: "⏳", text: "Pending" },
+  verified: { color: "text-green-400", icon: "✅", text: "Verified" },
+  rejected: { color: "text-red-400", icon: "❌", text: "Rejected" },
+};
 
 export default function StatusPage() {
   const { user } = useAuth();
-  const [status, setStatus] = useState<string>("not_started");
-  const [verifData, setVerifData] = useState<any>(null);
+  const [identity, setIdentity] = useState<IdentityProfile | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    (async () => {
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (userDoc.exists()) setStatus(userDoc.data().verificationStatus || "not_started");
-      const verifDoc = await getDoc(doc(db, "verifications", user.uid));
-      if (verifDoc.exists()) setVerifData(verifDoc.data());
-    })();
+    getIdentityProfile(db, user.uid, user).then(setIdentity);
   }, [user]);
 
-  const statusMap = {
-    not_started: { color: "text-gray-400", icon: "⭕", text: "Not Started" },
-    pending: { color: "text-yellow-400", icon: "⏳", text: "Pending" },
-    approved: { color: "text-green-400", icon: "✅", text: "Approved" },
-    rejected: { color: "text-red-400", icon: "❌", text: "Rejected" },
-  };
-
-  const current = statusMap[status as keyof typeof statusMap] || statusMap.not_started;
+  const status = identity?.verificationStatus || "not_started";
+  const current = statusMap[status] || statusMap.not_started;
 
   return (
     <ProtectedRoute>
@@ -41,14 +36,15 @@ export default function StatusPage() {
             <span className="text-4xl">{current.icon}</span>
             <span className={`text-xl font-semibold ${current.color}`}>{current.text}</span>
           </div>
-          {verifData && (
-            <div className="text-sm text-gray-400 space-y-1">
-              <p>Submitted: {verifData.submittedAt?.toDate().toLocaleDateString()}</p>
-              {verifData.reviewedAt && (
-                <p>Reviewed: {verifData.reviewedAt.toDate().toLocaleDateString()}</p>
-              )}
-            </div>
-          )}
+          <div className="text-sm text-gray-400 space-y-1">
+            <p>Submitted: {formatFirebaseDate(identity?.submittedAt)}</p>
+            <p>Reviewed: {formatFirebaseDate(identity?.reviewedAt)}</p>
+            {identity?.documentUrl && (
+              <p>
+                Document: <a href={identity.documentUrl} className="text-purple-300 underline" target="_blank" rel="noreferrer">View</a>
+              </p>
+            )}
+          </div>
         </GlassCard>
       </main>
     </ProtectedRoute>
