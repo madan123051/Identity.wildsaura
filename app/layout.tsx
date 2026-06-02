@@ -1,4 +1,4 @@
-import "./globals.css";
+import "../styles/globals.css";
 import { AuthProvider } from "@/lib/authContext";
 
 export const metadata = {
