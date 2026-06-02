@@ -22,8 +22,10 @@ const nextConfig = {
     ignoreDuringBuilds: false,
   },
 
-  // ─── External packages for server components ──────────────────────────
-  serverExternalPackages: ['firebase-admin'],
+  // ─── External packages for server components (Next.js 14.2 syntax) ────
+  experimental: {
+    serverComponentsExternalPackages: ['firebase-admin'],
+  },
 
   // ─── Security Headers ─────────────────────────────────────────────────
   async headers() {

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -11,7 +11,7 @@ import { validateReturnUrl } from "@/lib/redirect";
 
 const STEPS = ["Personal Details", "Country", "Upload Document", "Review"];
 
-export default function VerifyPage() {
+function VerifyContent() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -159,5 +159,13 @@ export default function VerifyPage() {
         </GlassCard>
       </main>
     </ProtectedRoute>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <VerifyContent />
+    </Suspense>
   );
 }
