@@ -11,39 +11,39 @@ const Spinner = () => (
 
 /** Protects any route that requires a logged-in user (non-admin). */
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, canReviewVerification } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (loading) return;
     if (!user) {
       router.push("/login");
-    } else if (isAdmin) {
-      // Admin landed on a user page — send them to their dashboard
+    } else if (canReviewVerification) {
+      // Reviewers landed on a user page — send them to their dashboard
       router.push("/admin");
     }
-  }, [user, loading, isAdmin, router]);
+  }, [user, loading, canReviewVerification, router]);
 
-  if (loading || !user || isAdmin) return <Spinner />;
+  if (loading || !user || canReviewVerification) return <Spinner />;
 
   return <>{children}</>;
 }
 
 /** Protects routes that require admin access. */
 export function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, canReviewVerification } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (loading) return;
     if (!user) {
       router.push("/login");
-    } else if (!isAdmin) {
+    } else if (!canReviewVerification) {
       router.push("/dashboard");
     }
-  }, [user, loading, isAdmin, router]);
+  }, [user, loading, canReviewVerification, router]);
 
-  if (loading || !user || !isAdmin) return <Spinner />;
+  if (loading || !user || !canReviewVerification) return <Spinner />;
 
   return <>{children}</>;
 }

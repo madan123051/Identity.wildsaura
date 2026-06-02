@@ -10,11 +10,11 @@ Central **authentication, identity & verification** hub for all WildSaura apps (
 
 | Field | Value |
 |-------|-------|
-| **Admin Email** | `madan123050@gmail.com` |
 | **Admin Dashboard** | `/admin` |
-| **Auth Guard** | `lib/authContext.tsx` → `ADMIN_EMAIL` constant |
+| **Auth Guard** | Firebase custom claims via `lib/authContext.tsx` |
+| **Required Claims** | `admin: true` or `verificationReviewer: true` |
 
-Only the admin email can access the `/admin` verification dashboard.
+Admin and verification reviewer access is controlled by Firebase custom claims. Hardcoded admin email routing has been removed from the app.
 
 ---
 
@@ -65,7 +65,7 @@ components/
 lib/
 ├── firebase.ts                 # Firebase initialization (shared)
 ├── firebaseClient.ts           # Firebase client (getDb/getAuth/getStorage)
-├── authContext.tsx             # useAuth hook + AuthProvider + ADMIN_EMAIL
+├── authContext.tsx             # useAuth hook + AuthProvider + custom claims
 ├── referral.ts                 # Referral code logic
 └── redirect.ts                 # Secure cross-app redirect (allowlist)
 ```
@@ -121,8 +121,8 @@ users/{uid}
   - displayName: string
   - photoURL: string
   - verified: boolean
-  - verificationStatus: "pending" | "verified" | "rejected" | "none"
-  - connectedApps: string[]
+  - verificationStatus: "not_started" | "pending" | "verified" | "rejected"
+  - connectedApps: { [appId]: boolean | { connected, firstSeen, lastSeen } }
   - createdAt: Timestamp
   - updatedAt: Timestamp
 
@@ -156,6 +156,7 @@ profiles/{uid}
 market.wildsaura.com
 drishya.wildsaura.com
 community.wildsaura.com
+creator.wildsaura.com
 identity.wildsaura.com
 wildsaura.com
 ```
@@ -166,7 +167,7 @@ wildsaura.com
 
 - HTTP Security Headers (CSP, HSTS, X-Frame-Options)
 - Protected routes with `ProtectedRoute` + `AdminRoute` components
-- Admin-only dashboard guarded by email check
+- Admin-only dashboard guarded by Firebase custom claims
 - Secure cross-app redirects (allowlist-based)
 - Firebase Auth state persistence
 - Age validation (16+ required for signup)

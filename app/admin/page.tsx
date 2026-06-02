@@ -8,11 +8,9 @@ import { AdminRoute } from '@/components/ProtectedRoute';
 import {
   collection,
   getDocs,
-  doc,
-  updateDoc,
-  query,
-  orderBy,
 } from 'firebase/firestore';
+import { normalizeVerificationStatus } from '@/lib/identity';
+import { syncVerificationStatusTransaction } from '@/lib/verification';
 
 interface UserData {
   uid: string;
@@ -21,12 +19,14 @@ interface UserData {
   fullName?: string;
   country?: string;
   documentURL?: string;
-  verificationStatus: 'pending' | 'verified' | 'rejected' | string;
+  documentUrl?: string;
+  verificationStatus: 'not_started' | 'pending' | 'verified' | 'rejected' | string;
+  verified?: boolean;
   submittedAt?: any;
 }
 
 function AdminDashboardInner() {
-  const { user } = useAuth();
+  const { user, canReviewVerification } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,26 +42,82 @@ function AdminDashboardInner() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, 'users'), orderBy('submittedAt', 'desc'));
-      const snapshot = await getDocs(q);
-      const data = snapshot.docs.map((d) => ({ uid: d.id, ...d.data() } as UserData));
-      setUsers(data);
-    } catch {
-      const snapshot = await getDocs(collection(db, 'users'));
-      const data = snapshot.docs.map((d) => ({ uid: d.id, ...d.data() } as UserData));
-      setUsers(data);
+      const [usersSnap, profilesSnap, verificationsSnap] = await Promise.all([
+        getDocs(collection(db, 'users')),
+        getDocs(collection(db, 'profiles')),
+        getDocs(collection(db, 'verifications')),
+      ]);
+      const byUid = new Map<string, UserData>();
+
+      profilesSnap.docs.forEach((d) => {
+        const profile = d.data();
+        byUid.set(d.id, {
+          uid: d.id,
+          email: profile.email || '',
+          displayName: profile.display_name || profile.displayName || '',
+          fullName: profile.display_name || profile.fullName || '',
+          country: profile.country,
+          documentURL: profile.id_proof_url,
+          verificationStatus: normalizeVerificationStatus(profile.verification_status, profile.is_verified),
+          submittedAt: profile.submittedAt || profile.created_at,
+        });
+      });
+
+      usersSnap.docs.forEach((d) => {
+        const userData = d.data();
+        const existing = byUid.get(d.id) || ({ uid: d.id } as UserData);
+        byUid.set(d.id, {
+          ...existing,
+          ...userData,
+          uid: d.id,
+          email: userData.email || existing.email || '',
+          displayName: userData.displayName || existing.displayName,
+          fullName: userData.fullName || existing.fullName || userData.displayName,
+          verificationStatus: normalizeVerificationStatus(userData.verificationStatus, userData.verified),
+        } as UserData);
+      });
+
+      verificationsSnap.docs.forEach((d) => {
+        const verification = d.data();
+        const existing = byUid.get(d.id) || ({ uid: d.id, email: '' } as UserData);
+        byUid.set(d.id, {
+          ...existing,
+          fullName: existing.fullName || verification.fullName,
+          country: existing.country || verification.country,
+          documentURL: existing.documentURL || verification.documentUrl || verification.documentURL,
+          documentUrl: verification.documentUrl,
+          submittedAt: verification.submittedAt || existing.submittedAt,
+          verificationStatus: normalizeVerificationStatus(existing.verificationStatus || verification.status, existing.verificationStatus === 'verified'),
+        });
+      });
+
+      setUsers(Array.from(byUid.values()).sort((a, b) => {
+        const aTime = a.submittedAt?.toMillis?.() || 0;
+        const bTime = b.submittedAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      }));
     } finally {
       setLoading(false);
     }
   };
 
   const updateStatus = async (uid: string, status: 'verified' | 'rejected') => {
+    if (!canReviewVerification) return;
     setActionLoading(uid + status);
-    await updateDoc(doc(db, 'users', uid), { verificationStatus: status });
-    setUsers((prev) =>
-      prev.map((u) => (u.uid === uid ? { ...u, verificationStatus: status } : u))
-    );
-    setActionLoading(null);
+    try {
+      await syncVerificationStatusTransaction({
+        db,
+        uid,
+        status,
+        reviewer: { uid: user?.uid, email: user?.email },
+        auditMessage: `Admin marked verification ${status}`,
+      });
+      setUsers((prev) =>
+        prev.map((u) => (u.uid === uid ? { ...u, verificationStatus: status, verified: status === 'verified' } : u))
+      );
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const filtered = users.filter((u) => {
@@ -242,9 +298,9 @@ function AdminDashboardInner() {
                           </div>
                           <div>
                             <div className="text-gray-400 text-xs mb-1">Document</div>
-                            {u.documentURL ? (
+                            {(u.documentURL || u.documentUrl) ? (
                               <a
-                                href={u.documentURL}
+                                href={u.documentURL || u.documentUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="text-indigo-400 underline"
