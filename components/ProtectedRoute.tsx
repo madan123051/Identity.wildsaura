@@ -1,8 +1,7 @@
-'use client';
-
-import { useAuth } from '@/lib/authContext';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+"use client";
+import { useAuth } from "@/lib/authContext";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -10,22 +9,17 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/login');
+      router.push("/login");
     }
   }, [user, loading, router]);
 
-  if (loading) {
+  if (loading || !user) {
     return (
-      <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🌿</div>
-          <p style={{ color: 'rgba(255,255,255,0.5)' }}>Loading...</p>
-        </div>
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-white"></div>
       </div>
     );
   }
-
-  if (!user) return null;
 
   return <>{children}</>;
 }

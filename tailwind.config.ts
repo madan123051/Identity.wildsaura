@@ -1,29 +1,21 @@
-import type { Config } from 'tailwindcss';
+import type { Config } from "tailwindcss";
 
 const config: Config = {
-  content: [
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
-  ],
+  content: ["./app/**/*.{js,ts,jsx,tsx}", "./components/**/*.{js,ts,jsx,tsx}"],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
-        wildsaura: {
-          green: '#00ff88',
-          dark: '#0a0f0d',
-          card: 'rgba(255,255,255,0.05)',
+        brand: {
+          500: "#7c3aed",
+          600: "#6d28d9",
         },
       },
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-      },
-      fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+      backdropBlur: {
+        xs: "2px",
       },
     },
   },
   plugins: [],
 };
-
 export default config;
