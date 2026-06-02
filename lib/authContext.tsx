@@ -3,36 +3,53 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "./firebase";
 
-const ADMIN_EMAIL = "madan123050@gmail.com";
-
 type AuthContextType = {
   user: User | null;
   loading: boolean;
   isAdmin: boolean;
+  isVerificationReviewer: boolean;
+  claims: Record<string, unknown>;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   isAdmin: false,
+  isVerificationReviewer: false,
+  claims: {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [claims, setClaims] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
-      setLoading(false);
+      if (!firebaseUser) {
+        setClaims({});
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const token = await firebaseUser.getIdTokenResult(true);
+        setClaims(token.claims);
+      } catch {
+        setClaims({});
+      } finally {
+        setLoading(false);
+      }
     });
     return unsubscribe;
   }, []);
 
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const isAdmin = claims.admin === true;
+  const isVerificationReviewer = isAdmin || claims.verificationReviewer === true;
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, isAdmin, isVerificationReviewer, claims }}>
       {children}
     </AuthContext.Provider>
   );
