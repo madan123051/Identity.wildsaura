@@ -20,6 +20,10 @@ export async function submitVerificationRequest(
     country: string;
     documentUrl: string;
     email?: string | null;
+    documentType?: string;
+    documentNumber?: string;
+    phone?: string;
+    notes?: string;
   }
 ) {
   await runTransaction(db, async (transaction) => {
@@ -34,7 +38,10 @@ export async function submitVerificationRequest(
       displayName: data.fullName,
       fullName: data.fullName,
       country: data.country,
+      phone: data.phone || '',
       documentUrl: data.documentUrl,
+      documentType: data.documentType || '',
+      documentNumber: data.documentNumber || '',
       verificationStatus: 'pending',
       verified: false,
       submittedAt: now,
@@ -46,7 +53,10 @@ export async function submitVerificationRequest(
       email: data.email || '',
       display_name: data.fullName,
       country: data.country,
+      phone: data.phone || '',
       id_proof_url: data.documentUrl,
+      id_document_type: data.documentType || '',
+      id_document_number: data.documentNumber || '',
       verification_status: 'pending',
       is_verified: false,
       verification_badge: 'none',
@@ -57,7 +67,11 @@ export async function submitVerificationRequest(
       uid,
       fullName: data.fullName,
       country: data.country,
+      phone: data.phone || '',
       documentUrl: data.documentUrl,
+      documentType: data.documentType || '',
+      documentNumber: data.documentNumber || '',
+      notes: data.notes || '',
       status: 'pending',
       submittedAt: now,
       reviewedAt: null,

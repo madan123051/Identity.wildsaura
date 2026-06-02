@@ -20,10 +20,10 @@ export function SignupFormView() {
       <div className="auth-card" style={{ maxWidth: 480 }}>
         <AuthLogo />
         <h2 style={{ color: '#F0F6FC', fontSize: '1.1rem', textAlign: 'center', marginBottom: '0.25rem' }}>
-          🏔️ Welcome to Drishya!
+          Welcome to WildSaura Identity
         </h2>
         <p style={{ color: '#8B949E', fontSize: '0.8rem', textAlign: 'center', marginBottom: '1rem' }}>
-          Share Nepal's culture &amp; nature with the world
+          Create one verified profile for the WildSaura ecosystem
         </p>
 
         {!googleUser && (
@@ -151,7 +151,7 @@ export function SignupFormView() {
 
           {error && <div className="auth-error">⚠ {error}</div>}
           <button type="submit" className="auth-btn" style={{ marginTop: '0.5rem' }}>
-            Next → Terms &amp; Conditions
+            Next → Identity Terms
           </button>
         </form>
 
