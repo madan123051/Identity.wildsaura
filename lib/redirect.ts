@@ -2,6 +2,7 @@ const ALLOWED_DOMAINS = [
   "market.wildsaura.com",
   "drishya.wildsaura.com",
   "community.wildsaura.com",
+  "creator.wildsaura.com",
   "identity.wildsaura.com",
   "wildsaura.com",
 ];
