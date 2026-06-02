@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/lib/authContext';
+import { AdminRoute } from '@/components/ProtectedRoute';
 import {
   collection,
   getDocs,
@@ -12,8 +13,6 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore';
-
-const ADMIN_EMAIL = 'madan123050@gmail.com';
 
 interface UserData {
   uid: string;
@@ -26,31 +25,22 @@ interface UserData {
   submittedAt?: any;
 }
 
-export default function AdminDashboard() {
+function AdminDashboardInner() {
+  const { user } = useAuth();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [authorized, setAuthorized] = useState(false);
   const [users, setUsers] = useState<UserData[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [expandedUid, setExpandedUid] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user || user.email !== ADMIN_EMAIL) {
-        setLoading(false);
-        setAuthorized(false);
-        return;
-      }
-      setAuthorized(true);
-      await fetchUsers();
-      setLoading(false);
-    });
-    return () => unsubscribe();
+    fetchUsers();
   }, []);
 
   const fetchUsers = async () => {
+    setLoading(true);
     try {
       const q = query(collection(db, 'users'), orderBy('submittedAt', 'desc'));
       const snapshot = await getDocs(q);
@@ -60,6 +50,8 @@ export default function AdminDashboard() {
       const snapshot = await getDocs(collection(db, 'users'));
       const data = snapshot.docs.map((d) => ({ uid: d.id, ...d.data() } as UserData));
       setUsers(data);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -96,7 +88,11 @@ export default function AdminDashboard() {
       rejected: 'bg-red-100 text-red-800',
     };
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${styles[status] || 'bg-gray-100 text-gray-600'}`}>
+      <span
+        className={`px-2 py-1 rounded-full text-xs font-semibold ${
+          styles[status] || 'bg-gray-100 text-gray-600'
+        }`}
+      >
         {status}
       </span>
     );
@@ -105,22 +101,7 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-950">
-        <div className="text-white text-xl animate-pulse">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!authorized) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950">
-        <div className="text-center text-white">
-          <div className="text-6xl mb-4">🚫</div>
-          <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
-          <p className="text-gray-400">Only admins can access this page.</p>
-          <button onClick={() => router.push('/')} className="mt-6 px-4 py-2 bg-indigo-600 rounded-lg hover:bg-indigo-700">
-            Go Home
-          </button>
-        </div>
+        <div className="text-white text-xl animate-pulse">Loading users...</div>
       </div>
     );
   }
@@ -128,9 +109,20 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">🛡️ Admin Dashboard</h1>
-        <p className="text-gray-400 mt-1">identity.wildsaura.com — User Verification Management</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">🛡️ Admin Dashboard</h1>
+          <p className="text-gray-400 mt-1">
+            identity.wildsaura.com — User Verification Management
+          </p>
+          <p className="text-indigo-400 text-sm mt-1">Logged in as: {user?.email}</p>
+        </div>
+        <button
+          onClick={() => router.push('/')}
+          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition"
+        >
+          ← Back to Home
+        </button>
       </div>
 
       {/* Stats */}
@@ -191,67 +183,77 @@ export default function AdminDashboard() {
             <tbody className="divide-y divide-gray-800">
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="text-center py-10 text-gray-500">No users found</td>
+                  <td colSpan={4} className="text-center py-10 text-gray-500">
+                    No users found
+                  </td>
                 </tr>
               )}
-              {filtered.map((user) => (
+              {filtered.map((u) => (
                 <>
                   <tr
-                    key={user.uid}
+                    key={u.uid}
                     className="hover:bg-gray-800 cursor-pointer transition"
-                    onClick={() => setExpandedUid(expandedUid === user.uid ? null : user.uid)}
+                    onClick={() => setExpandedUid(expandedUid === u.uid ? null : u.uid)}
                   >
                     <td className="px-4 py-3">
-                      <div className="font-medium">{user.displayName || user.fullName || '—'}</div>
-                      <div className="text-xs text-gray-500">{user.uid.slice(0, 12)}...</div>
+                      <div className="font-medium">{u.displayName || u.fullName || '—'}</div>
+                      <div className="text-xs text-gray-500">{u.uid.slice(0, 12)}...</div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-300">{user.email}</td>
-                    <td className="px-4 py-3">{statusBadge(user.verificationStatus)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-300">{u.email}</td>
+                    <td className="px-4 py-3">{statusBadge(u.verificationStatus)}</td>
                     <td className="px-4 py-3">
-                      {user.verificationStatus === 'pending' && (
+                      {u.verificationStatus === 'pending' ? (
                         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                           <button
-                            onClick={() => updateStatus(user.uid, 'verified')}
-                            disabled={actionLoading === user.uid + 'verified'}
+                            onClick={() => updateStatus(u.uid, 'verified')}
+                            disabled={actionLoading === u.uid + 'verified'}
                             className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded-lg text-xs font-semibold disabled:opacity-50 transition"
                           >
-                            {actionLoading === user.uid + 'verified' ? '...' : '✅ Approve'}
+                            {actionLoading === u.uid + 'verified' ? '...' : '✅ Approve'}
                           </button>
                           <button
-                            onClick={() => updateStatus(user.uid, 'rejected')}
-                            disabled={actionLoading === user.uid + 'rejected'}
+                            onClick={() => updateStatus(u.uid, 'rejected')}
+                            disabled={actionLoading === u.uid + 'rejected'}
                             className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-semibold disabled:opacity-50 transition"
                           >
-                            {actionLoading === user.uid + 'rejected' ? '...' : '❌ Reject'}
+                            {actionLoading === u.uid + 'rejected' ? '...' : '❌ Reject'}
                           </button>
                         </div>
-                      )}
-                      {user.verificationStatus !== 'pending' && (
+                      ) : (
                         <span className="text-xs text-gray-500">—</span>
                       )}
                     </td>
                   </tr>
-                  {expandedUid === user.uid && (
-                    <tr key={user.uid + '-expanded'} className="bg-gray-800">
+                  {expandedUid === u.uid && (
+                    <tr key={u.uid + '-expanded'} className="bg-gray-800">
                       <td colSpan={4} className="px-6 py-4">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
                             <div className="text-gray-400 text-xs mb-1">Full Name</div>
-                            <div>{user.fullName || '—'}</div>
+                            <div>{u.fullName || '—'}</div>
                           </div>
                           <div>
                             <div className="text-gray-400 text-xs mb-1">Country</div>
-                            <div>{user.country || '—'}</div>
+                            <div>{u.country || '—'}</div>
                           </div>
                           <div>
                             <div className="text-gray-400 text-xs mb-1">Submitted At</div>
-                            <div>{user.submittedAt?.toDate?.()?.toLocaleString() || '—'}</div>
+                            <div>{u.submittedAt?.toDate?.()?.toLocaleString() || '—'}</div>
                           </div>
                           <div>
                             <div className="text-gray-400 text-xs mb-1">Document</div>
-                            {user.documentURL ? (
-                              <a href={user.documentURL} target="_blank" rel="noreferrer" className="text-indigo-400 underline">View Document</a>
-                            ) : '—'}
+                            {u.documentURL ? (
+                              <a
+                                href={u.documentURL}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-indigo-400 underline"
+                              >
+                                View Document
+                              </a>
+                            ) : (
+                              '—'
+                            )}
                           </div>
                         </div>
                       </td>
@@ -264,5 +266,13 @@ export default function AdminDashboard() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminDashboard() {
+  return (
+    <AdminRoute>
+      <AdminDashboardInner />
+    </AdminRoute>
   );
 }

@@ -30,7 +30,7 @@ export default function DashboardPage() {
   }, [user]);
 
   const status = userData?.verificationStatus || "not_started";
-  const statusColors = {
+  const statusColors: Record<string, string> = {
     not_started: "text-gray-400",
     pending: "text-yellow-400",
     approved: "text-green-400",
@@ -38,6 +38,7 @@ export default function DashboardPage() {
   };
 
   return (
+    // ProtectedRoute now auto-redirects admin → /admin
     <ProtectedRoute>
       <Navbar />
       <main className="max-w-4xl mx-auto p-4 pt-24">
