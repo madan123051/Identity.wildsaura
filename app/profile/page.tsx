@@ -5,7 +5,8 @@ import GlassCard from "@/components/GlassCard";
 import { useAuth } from "@/lib/authContext";
 import { db } from "@/lib/firebase";
 import { IdentityProfile, ensureIdentityRecordsForAuthUser, getIdentityProfile } from "@/lib/identity";
-import { useEffect, useState } from "react";
+import { uploadProfilePhoto } from "@/lib/storage";
+import { useEffect, useRef, useState } from "react";
 
 const provinces = [
   "Koshi Province",
@@ -21,8 +22,11 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [message, setMessage] = useState("");
   const [identity, setIdentity] = useState<IdentityProfile | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
   const [form, setForm] = useState({
     displayName: "",
     phone: "",
@@ -63,6 +67,27 @@ export default function ProfilePage() {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    // Show local preview immediately
+    const preview = URL.createObjectURL(file);
+    updateField("photoURL", preview);
+    setUploadingPhoto(true);
+    setMessage("");
+    try {
+      const url = await uploadProfilePhoto(user.uid, file);
+      updateField("photoURL", url);
+      setMessage("Profile photo uploaded! Click "Save WildSaura profile" to apply across the ecosystem.");
+    } catch {
+      setMessage("Photo upload failed. Please try again.");
+      // Revert preview
+      updateField("photoURL", identity?.photoURL || user.photoURL || "");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!user) return;
@@ -82,13 +107,15 @@ export default function ProfilePage() {
         termsAccepted: true,
       });
       setIdentity(updated);
-      setMessage("Profile saved successfully. Your identity dashboard is now updated.");
+      setMessage("Profile saved successfully. Your identity and photo are now synced across the WildSaura ecosystem.");
     } catch (error: any) {
       setMessage(error?.message || "Profile save failed. Please try again.");
     } finally {
       setSaving(false);
     }
   };
+
+  const avatarSrc = form.photoURL || `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(form.displayName || "WildSaura")}`;
 
   return (
     <ProtectedRoute>
@@ -105,12 +132,46 @@ export default function ProfilePage() {
         <div className="grid grid-cols-1 lg:grid-cols-[0.8fr_1.2fr] gap-6">
           <GlassCard>
             <div className="flex flex-col items-center text-center">
-              <img
-                src={form.photoURL || "https://api.dicebear.com/8.x/initials/svg?seed=WildSaura"}
-                alt="Profile preview"
-                className="w-28 h-28 rounded-3xl border border-purple-300/40 object-cover bg-white/10"
+              {/* Clickable profile photo with camera overlay */}
+              <div className="relative group cursor-pointer" onClick={() => !uploadingPhoto && photoInputRef.current?.click()}>
+                <img
+                  src={avatarSrc}
+                  alt="Profile photo"
+                  className="w-28 h-28 rounded-3xl border border-purple-300/40 object-cover bg-white/10 transition group-hover:opacity-70"
+                />
+                <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl bg-black/50 opacity-0 group-hover:opacity-100 transition">
+                  {uploadingPhoto ? (
+                    <span className="text-xs text-white animate-pulse font-medium">Uploading…</span>
+                  ) : (
+                    <>
+                      <span className="text-2xl">📷</span>
+                      <span className="text-xs text-white font-semibold mt-1">Change photo</span>
+                    </>
+                  )}
+                </div>
+                {uploadingPhoto && (
+                  <div className="absolute inset-0 rounded-3xl bg-black/60 flex items-center justify-center">
+                    <span className="text-xs text-white animate-pulse font-medium">Uploading…</span>
+                  </div>
+                )}
+              </div>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoChange}
               />
-              <h2 className="text-2xl font-bold mt-4">{form.displayName || user?.email || "WildSaura User"}</h2>
+              <button
+                type="button"
+                onClick={() => !uploadingPhoto && photoInputRef.current?.click()}
+                disabled={uploadingPhoto}
+                className="mt-3 text-xs text-purple-300 hover:text-purple-100 disabled:opacity-50 transition"
+              >
+                {uploadingPhoto ? "Uploading photo…" : "Tap to update profile photo"}
+              </button>
+
+              <h2 className="text-2xl font-bold mt-3">{form.displayName || user?.email || "WildSaura User"}</h2>
               <p className="text-gray-400 text-sm mt-1">{identity?.username ? `@${identity.username}` : "Username is set during onboarding"}</p>
               <div className="mt-5 w-full rounded-xl bg-white/5 p-4 text-left text-sm space-y-3">
                 <Info label="Email" value={identity?.email || user?.email || "—"} />
@@ -127,14 +188,14 @@ export default function ProfilePage() {
             ) : (
               <form onSubmit={handleSave} className="space-y-4">
                 <Field label="Full name" required>
-                  <input className="input" value={form.displayName} onChange={(event) => updateField("displayName", event.target.value)} required />
+                  <input className="input" value={form.displayName} onChange={(e) => updateField("displayName", e.target.value)} required />
                 </Field>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="Phone">
-                    <input className="input" value={form.phone} onChange={(event) => updateField("phone", event.target.value)} placeholder="+977-98XXXXXXXX" />
+                    <input className="input" value={form.phone} onChange={(e) => updateField("phone", e.target.value)} placeholder="+977-98XXXXXXXX" />
                   </Field>
                   <Field label="Gender">
-                    <select className="input" value={form.gender} onChange={(event) => updateField("gender", event.target.value)}>
+                    <select className="input" value={form.gender} onChange={(e) => updateField("gender", e.target.value)}>
                       <option value="">Select gender</option>
                       <option value="male">Male</option>
                       <option value="female">Female</option>
@@ -145,28 +206,32 @@ export default function ProfilePage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="Date of birth">
-                    <input className="input" type="date" value={form.dateOfBirth} onChange={(event) => updateField("dateOfBirth", event.target.value)} />
+                    <input className="input" type="date" value={form.dateOfBirth} onChange={(e) => updateField("dateOfBirth", e.target.value)} />
                   </Field>
                   <Field label="Province">
-                    <select className="input" value={form.province} onChange={(event) => updateField("province", event.target.value)}>
+                    <select className="input" value={form.province} onChange={(e) => updateField("province", e.target.value)}>
                       <option value="">Select province</option>
                       {provinces.map((province) => <option key={province} value={province}>{province}</option>)}
                     </select>
                   </Field>
                 </div>
                 <Field label="Address">
-                  <input className="input" value={form.address} onChange={(event) => updateField("address", event.target.value)} placeholder="City, district, or full address" />
+                  <input className="input" value={form.address} onChange={(e) => updateField("address", e.target.value)} placeholder="City, district, or full address" />
                 </Field>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Field label="Country">
-                    <input className="input" value={form.country} onChange={(event) => updateField("country", event.target.value)} />
-                  </Field>
-                  <Field label="Avatar URL">
-                    <input className="input" type="url" value={form.photoURL} onChange={(event) => updateField("photoURL", event.target.value)} placeholder="https://..." />
-                  </Field>
-                </div>
-                {message && <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-gray-200">{message}</div>}
-                <button type="submit" disabled={saving} className="w-full rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-60 px-5 py-3 font-semibold transition">
+                <Field label="Country">
+                  <input className="input" value={form.country} onChange={(e) => updateField("country", e.target.value)} />
+                </Field>
+
+                {message && (
+                  <div className={`rounded-xl border p-3 text-sm ${message.includes("failed") || message.includes("Failed") ? "border-red-400/30 bg-red-500/10 text-red-200" : "border-white/10 bg-white/5 text-gray-200"}`}>
+                    {message}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={saving || uploadingPhoto}
+                  className="w-full rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-60 px-5 py-3 font-semibold transition"
+                >
                   {saving ? "Saving profile..." : "Save WildSaura profile"}
                 </button>
               </form>
