@@ -53,7 +53,7 @@ const appDescriptions: Partial<Record<ConnectedAppId, string>> = {
 };
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, canReviewVerification } = useAuth();
   const [identity, setIdentity] = useState<IdentityProfile | null>(null);
   const [sessions, setSessions] = useState<IdentitySession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +105,25 @@ export default function DashboardPage() {
     <ProtectedRoute>
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 pt-36 lg:pt-28 pb-12 space-y-8">
+        {/* Admin Toggle Banner */}
+        {canReviewVerification && (
+          <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 backdrop-blur-sm p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🛡️</span>
+              <div>
+                <p className="font-bold text-amber-200">Admin Access Available</p>
+                <p className="text-sm text-amber-300/70">You have admin privileges. Switch to the admin panel to manage verifications.</p>
+              </div>
+            </div>
+            <Link
+              href="/admin"
+              className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-bold transition whitespace-nowrap flex items-center gap-2"
+            >
+              <span>⚡</span> Switch to Admin Panel
+            </Link>
+          </div>
+        )}
+
         <section className="grid grid-cols-1 xl:grid-cols-[1.4fr_0.8fr] gap-6">
           <GlassCard className="overflow-hidden relative">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-emerald-500/10 pointer-events-none" />

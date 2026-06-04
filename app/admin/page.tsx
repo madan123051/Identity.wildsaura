@@ -128,8 +128,8 @@ function AdminDashboardInner() {
             Logged in as: {user?.email} • Claims: {claims.admin ? 'admin' : claims.verificationReviewer ? 'verificationReviewer' : 'none'}
           </p>
         </div>
-        <button onClick={() => router.push('/')} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition">
-          ← Back to Home
+        <button onClick={() => router.push('/dashboard')} className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-semibold transition flex items-center gap-2">
+          🏠 Back to Dashboard
         </button>
       </div>
 
