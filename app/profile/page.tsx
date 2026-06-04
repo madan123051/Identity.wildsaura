@@ -78,7 +78,7 @@ export default function ProfilePage() {
     try {
       const url = await uploadProfilePhoto(user.uid, file);
       updateField("photoURL", url);
-      setMessage("Profile photo uploaded! Click "Save WildSaura profile" to apply across the ecosystem.");
+      setMessage("Profile photo uploaded! Click 'Save WildSaura profile' to apply across the ecosystem.");
     } catch {
       setMessage("Photo upload failed. Please try again.");
       // Revert preview
