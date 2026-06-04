@@ -1,11 +1,13 @@
 "use client";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import Navbar from "@/components/Navbar";
 import GlassCard from "@/components/GlassCard";
 import { useAuth } from "@/lib/authContext";
 import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
 import {
   ConnectedAppId,
   IdentityProfile,
@@ -132,6 +134,12 @@ export default function DashboardPage() {
   const [sessions, setSessions] = useState<IdentitySession[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>("overview");
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push("/login");
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -178,8 +186,7 @@ export default function DashboardPage() {
 
   return (
     <ProtectedRoute>
-      <Navbar />
-      <main className="max-w-4xl mx-auto px-4 pt-36 lg:pt-28 pb-16">
+      <main className="max-w-4xl mx-auto px-4 pt-8 pb-16">
         {/* Hero header */}
         <div className="flex items-center gap-4 mb-6">
           <img
@@ -187,7 +194,7 @@ export default function DashboardPage() {
             alt="Avatar"
             className="w-14 h-14 rounded-2xl border border-purple-300/30 object-cover bg-white/10 flex-shrink-0"
           />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-xs uppercase tracking-widest text-purple-300 mb-1">WildSaura Identity</p>
             <h1 className="text-2xl font-black truncate">
               {identity?.displayName || user?.email || "WildSaura User"}
@@ -200,17 +207,31 @@ export default function DashboardPage() {
               <span className="text-xs text-gray-500">{completion}% complete</span>
             </div>
           </div>
-          {canReviewVerification && (
-            <Link
-              href="/admin"
-              className="ml-auto flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-400/30 text-amber-200 text-sm font-semibold hover:bg-amber-500/25 transition"
+          {/* Action buttons */}
+          <div className="flex flex-col items-end gap-2 flex-shrink-0">
+            {canReviewVerification && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-400/30 text-amber-200 text-sm font-semibold hover:bg-amber-500/25 transition"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2l8 4v6c0 5-3.5 8.5-8 10C7.5 20.5 4 17 4 12V6z" />
+                </svg>
+                Admin
+              </Link>
+            )}
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-sm font-semibold hover:bg-white/10 hover:text-white transition"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2l8 4v6c0 5-3.5 8.5-8 10C7.5 20.5 4 17 4 12V6z" />
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
-              Admin
-            </Link>
-          )}
+              Logout
+            </button>
+          </div>
         </div>
 
         {/* Tab bar */}
@@ -513,7 +534,6 @@ function SessionsTab({ sessions }: { sessions: IdentitySession[] }) {
 
 // ─── Security Tab ────────────────────────────────────────────────────
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 
 function SecurityTab({ user }: any) {
   const [currentPassword, setCurrentPassword] = useState("");
