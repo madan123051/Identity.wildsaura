@@ -18,7 +18,12 @@ export async function submitVerificationRequest(
   data: {
     fullName: string;
     country: string;
-    documentUrl: string;
+    /** Primary document URL — typically the front photo */
+    documentUrl?: string;
+    /** Front photo URL (from direct upload) */
+    documentFrontUrl?: string;
+    /** Back photo URL (from direct upload) */
+    documentBackUrl?: string;
     email?: string | null;
     documentType?: string;
     documentNumber?: string;
@@ -26,6 +31,9 @@ export async function submitVerificationRequest(
     notes?: string;
   }
 ) {
+  // Resolve the canonical documentUrl: prefer documentFrontUrl if provided
+  const resolvedDocumentUrl = data.documentFrontUrl || data.documentUrl || '';
+
   await runTransaction(db, async (transaction) => {
     const userRef = doc(db, 'users', uid);
     const profileRef = doc(db, 'profiles', uid);
@@ -39,7 +47,9 @@ export async function submitVerificationRequest(
       fullName: data.fullName,
       country: data.country,
       phone: data.phone || '',
-      documentUrl: data.documentUrl,
+      documentUrl: resolvedDocumentUrl,
+      documentFrontUrl: data.documentFrontUrl || '',
+      documentBackUrl: data.documentBackUrl || '',
       documentType: data.documentType || '',
       documentNumber: data.documentNumber || '',
       verificationStatus: 'pending',
@@ -54,7 +64,9 @@ export async function submitVerificationRequest(
       display_name: data.fullName,
       country: data.country,
       phone: data.phone || '',
-      id_proof_url: data.documentUrl,
+      id_proof_url: resolvedDocumentUrl,
+      id_document_front_url: data.documentFrontUrl || '',
+      id_document_back_url: data.documentBackUrl || '',
       id_document_type: data.documentType || '',
       id_document_number: data.documentNumber || '',
       verification_status: 'pending',
@@ -68,7 +80,9 @@ export async function submitVerificationRequest(
       fullName: data.fullName,
       country: data.country,
       phone: data.phone || '',
-      documentUrl: data.documentUrl,
+      documentUrl: resolvedDocumentUrl,
+      documentFrontUrl: data.documentFrontUrl || '',
+      documentBackUrl: data.documentBackUrl || '',
       documentType: data.documentType || '',
       documentNumber: data.documentNumber || '',
       notes: data.notes || '',
