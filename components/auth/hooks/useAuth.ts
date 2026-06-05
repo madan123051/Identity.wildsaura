@@ -335,6 +335,9 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
     }
   };
 
+  // handleGoogleLogin — same smart check as handleGoogleSignup
+  // New user → show signup form (profile details required)
+  // Returning user with complete profile → onAuthSuccess()
   const handleGoogleLogin = async () => {
     const auth = getAuth();
     if (!auth) { setError('Firebase connecting...'); return; }
@@ -344,15 +347,30 @@ export function useAuth({ onAuthSuccess, onGuestLogin }: AuthPageProps) {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+      const db = getDb();
+      if (db) {
+        const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
+        if (profileSnap.exists()) {
+          const profileData = profileSnap.data();
+          // Returning user with complete profile → login normally
+          if (profileData.terms_accepted === true) {
+            await ensureIdentityRecordsForAuthUser(db, user);
+            await registerConnectedApp(db, user.uid, 'identity');
+            onAuthSuccess();
+            return;
+          }
+          // Profile exists but incomplete → prefill and show form
+          prefillFromProfile(profileData, user);
+          setError('कृपया पहिले दर्ता फारम पूरा गर्नुहोस् (Please complete registration first)');
+          return;
+        }
+      }
+      // Brand new user — no profile yet → show signup form
       setGoogleUser(user);
       setSignupEmail(user.email || '');
       if (user.displayName) setFullName(user.displayName);
-      const db = getDb();
-      if (db) {
-        await ensureIdentityRecordsForAuthUser(db, user);
-        await registerConnectedApp(db, user.uid, 'identity');
-      }
-      onAuthSuccess();
+      setMode('signup');
+      setSignupStep(1);
     } catch (err: any) {
       if (err.code !== 'auth/popup-closed-by-user') setError(err.message || 'Google login failed');
     } finally {
