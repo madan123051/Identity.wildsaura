@@ -6,12 +6,18 @@
 // ====================================================================
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { getAuth as fbGetAuth } from 'firebase/auth';
+import {
+  initializeAuth,
+  indexedDBLocalPersistence,
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+  getAuth as fbGetAuth,
+} from 'firebase/auth';
 import { getStorage as fbGetStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyCXDJrFmn-pzbqys91tj4Fruqn4tl58p9Y',
-  authDomain: 'wildsaura-1ef8a.firebaseapp.com',
+  authDomain: 'identity.wildsaura.com',
   databaseURL: 'https://wildsaura-1ef8a-default-rtdb.firebaseio.com',
   projectId: 'wildsaura-1ef8a',
   storageBucket: 'wildsaura-1ef8a.firebasestorage.app',
@@ -22,7 +28,20 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = fbGetAuth(app);
+
+// Use indexedDB persistence for better iOS Safari compatibility
+// Falls back to browserLocalPersistence if indexedDB is unavailable
+let auth: ReturnType<typeof fbGetAuth>;
+try {
+  auth = initializeAuth(app, {
+    persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+    popupRedirectResolver: browserPopupRedirectResolver,
+  });
+} catch {
+  // Already initialized
+  auth = fbGetAuth(app);
+}
+
 const storage = fbGetStorage(app);
 
 export function getDb() { return db; }
