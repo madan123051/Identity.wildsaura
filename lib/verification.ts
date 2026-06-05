@@ -54,6 +54,7 @@ export async function submitVerificationRequest(
       documentNumber: data.documentNumber || '',
       verificationStatus: 'pending',
       verified: false,
+      isVerified: false,
       submittedAt: now,
       updatedAt: now,
     }, { merge: true });
@@ -113,6 +114,9 @@ export async function syncVerificationStatus(
     transaction.set(userRef, {
       verificationStatus: status,
       verified,
+      // Also write `isVerified` so apps that read this field (e.g. wildsaura-market)
+      // pick up the correct state without needing a field-name migration.
+      isVerified: verified,
       reviewedAt: status === 'verified' || status === 'rejected' ? now : null,
       reviewedBy: reviewer.uid || reviewer.email || null,
       updatedAt: now,
@@ -149,6 +153,7 @@ export async function markVerificationNotStarted(db: Firestore, uid: string) {
   await setDoc(doc(db, 'users', uid), {
     verificationStatus: 'not_started',
     verified: false,
+    isVerified: false,
     updatedAt: serverTimestamp(),
   }, { merge: true });
 }
