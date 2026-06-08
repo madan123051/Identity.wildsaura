@@ -45,6 +45,7 @@ function VerifyContent() {
   const [identity, setIdentity] = useState<IdentityProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [uploadingFront, setUploadingFront] = useState(false);
   const [uploadingBack, setUploadingBack] = useState(false);
@@ -177,11 +178,12 @@ function VerifyContent() {
         notes: form.notes.trim(),
         email: user.email,
       });
-      // After submission the status is "pending" — use window.location.href
-      // so the return app gets a full fresh page load and reads the updated
-      // Firestore document rather than any stale in-memory state.
-      const safeUrl = validateReturnUrl(returnUrl);
-      window.location.href = safeUrl;
+      // After submission the status is "pending".
+      // Show a confirmation screen instead of redirecting back to market —
+      // an immediate redirect would trigger market's verification guard (which
+      // sees isVerified=false while still pending) and send the user straight
+      // back here, creating an infinite redirect loop.
+      setSubmitted(true);
     } catch (err: any) {
       setError(err?.message || "Submission failed. Please try again.");
     } finally {
@@ -240,6 +242,27 @@ function VerifyContent() {
 
             {loading ? (
               <p className="text-gray-400">Loading your profile...</p>
+            ) : submitted ? (
+              <div className="text-center py-8 space-y-5">
+                <div className="w-20 h-20 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-4xl mx-auto">
+                  ✅
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold">Verification Submitted!</h2>
+                  <p className="text-gray-300 mt-3 leading-relaxed">
+                    Your documents are under review. The WildSaura team will get back to
+                    you within 24–48 hours.
+                  </p>
+                </div>
+                {returnUrl && returnUrl !== "/dashboard" && (
+                  <a
+                    href={validateReturnUrl(returnUrl)}
+                    className="inline-block mt-2 px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold transition"
+                  >
+                    ← Back to {new URL(validateReturnUrl(returnUrl)).hostname}
+                  </a>
+                )}
+              </div>
             ) : (
               <div className="space-y-5">
                 {step === 0 && (
