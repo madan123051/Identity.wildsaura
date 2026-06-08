@@ -5,6 +5,12 @@ const ALLOWED_DOMAINS = [
   "creator.wildsaura.com",
   "identity.wildsaura.com",
   "wildsaura.com",
+  // Additional app domains
+  "lumina.wildsaura.com",
+  "studio.wildsaura.com",
+  // Development
+  "localhost",
+  "127.0.0.1",
 ];
 
 export function validateReturnUrl(url: string): string {
