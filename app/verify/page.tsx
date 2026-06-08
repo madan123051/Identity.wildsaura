@@ -77,9 +77,14 @@ function VerifyContent() {
         phone: profile.phone || "",
       }));
       setLoading(false);
-      // Auto-redirect if user is already verified
+      // Auto-redirect verified users back to the calling app.
+      // Use window.location.href instead of router.push so that a full
+      // cross-domain page load is triggered — Next.js router.push is
+      // designed for in-app navigation and may not fully reload the
+      // destination when the URL points to a different origin.
       if (profile.verificationStatus === "verified") {
-        router.push(validateReturnUrl(returnUrl));
+        const safeUrl = validateReturnUrl(returnUrl);
+        window.location.href = safeUrl;
         return;
       }
     })();
@@ -172,7 +177,11 @@ function VerifyContent() {
         notes: form.notes.trim(),
         email: user.email,
       });
-      router.push(validateReturnUrl(returnUrl));
+      // After submission the status is "pending" — use window.location.href
+      // so the return app gets a full fresh page load and reads the updated
+      // Firestore document rather than any stale in-memory state.
+      const safeUrl = validateReturnUrl(returnUrl);
+      window.location.href = safeUrl;
     } catch (err: any) {
       setError(err?.message || "Submission failed. Please try again.");
     } finally {
