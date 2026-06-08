@@ -77,6 +77,11 @@ function VerifyContent() {
         phone: profile.phone || "",
       }));
       setLoading(false);
+      // Auto-redirect if user is already verified
+      if (profile.verificationStatus === "verified") {
+        router.push(validateReturnUrl(returnUrl));
+        return;
+      }
     })();
     return () => {
       alive = false;
