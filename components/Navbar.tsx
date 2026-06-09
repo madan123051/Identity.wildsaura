@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/authContext";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 export default function Navbar() {
@@ -27,7 +28,8 @@ export default function Navbar() {
     <nav className="fixed top-0 w-full z-50 glass border-b border-white/10 px-4 py-3">
       <div className="max-w-7xl mx-auto flex flex-col gap-3 lg:flex-row lg:justify-between lg:items-center">
         <div className="flex items-center justify-between gap-4">
-          <Link href="/dashboard" className="font-bold text-xl text-purple-300 whitespace-nowrap">
+          <Link href="/dashboard" className="flex items-center gap-2 font-bold text-xl text-purple-300 whitespace-nowrap">
+            <Image src="/logo.png" alt="WildSaura" width={32} height={32} className="drop-shadow" />
             WildSaura ID
           </Link>
           {user && (
