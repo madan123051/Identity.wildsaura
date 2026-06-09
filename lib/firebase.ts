@@ -6,10 +6,9 @@ import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCXDJrFmn-pzbqys91tj4Fruqn4tl58p9Y",
-  // Custom domain as authDomain — required for mobile Google redirect to work
-  // Without this, Firebase redirects to /__/auth/handler on wildsaura-1ef8a.firebaseapp.com
-  // which then can't find identity.wildsaura.com → 404
-  authDomain: "identity.wildsaura.com",
+  // Keep authDomain as Firebase default — Google OAuth redirect_uri is registered here.
+  // Changing to custom domain requires updating Google Cloud Console OAuth credentials.
+  authDomain: "wildsaura-1ef8a.firebaseapp.com",
   databaseURL: "https://wildsaura-1ef8a-default-rtdb.firebaseio.com",
   projectId: "wildsaura-1ef8a",
   storageBucket: "wildsaura-1ef8a.firebasestorage.app",
