@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // ─── Image Optimization ──────────────────────────────────────────────
+  // ─── Image Optimization ───────────────────────────────────────────────
   images: {
     remotePatterns: [
       {
@@ -14,7 +14,7 @@ const nextConfig = {
     ],
   },
 
-  // ─── TypeScript & ESLint ───────────────────────────────────────────────
+  // ─── TypeScript & ESLint ──────────────────────────────────────────────
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -22,7 +22,7 @@ const nextConfig = {
     ignoreDuringBuilds: false,
   },
 
-  // ─── External packages for server components (Next.js 14.2 syntax) ────
+  // ─── External packages for server components ──────────────────────────
   experimental: {
     serverComponentsExternalPackages: ['firebase-admin'],
   },
@@ -46,6 +46,23 @@ const nextConfig = {
             ].join('; '),
           },
         ],
+      },
+    ];
+  },
+
+  // ─── Rewrites ─────────────────────────────────────────────────────────
+  // Firebase Google Sign-In on mobile uses redirect flow.
+  // After Google auth, it redirects back to identity.wildsaura.com/__/auth/handler
+  // We proxy this to Firebase so Next.js doesn't return 404.
+  async rewrites() {
+    return [
+      {
+        source: '/__/auth/:path*',
+        destination: 'https://wildsaura-1ef8a.firebaseapp.com/__/auth/:path*',
+      },
+      {
+        source: '/__/firebase/:path*',
+        destination: 'https://wildsaura-1ef8a.firebaseapp.com/__/firebase/:path*',
       },
     ];
   },

@@ -6,8 +6,6 @@ import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCXDJrFmn-pzbqys91tj4Fruqn4tl58p9Y",
-  // authDomain must stay as firebaseapp.com — Google OAuth redirect_uri is registered here.
-  // Changing to custom domain requires updating Google Cloud Console OAuth credentials manually.
   authDomain: "wildsaura-1ef8a.firebaseapp.com",
   databaseURL: "https://wildsaura-1ef8a-default-rtdb.firebaseio.com",
   projectId: "wildsaura-1ef8a",
