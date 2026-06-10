@@ -78,12 +78,15 @@ function VerifyContent() {
         phone: profile.phone || "",
       }));
       setLoading(false);
+
       // Auto-redirect verified users back to the calling app.
-      // Use window.location.href instead of router.push so that a full
-      // cross-domain page load is triggered — Next.js router.push is
-      // designed for in-app navigation and may not fully reload the
-      // destination when the URL points to a different origin.
-      if (profile.verificationStatus === "verified") {
+      // Also redirect pending users — they already submitted, nothing more
+      // to do here. The app will show a "pending review" banner.
+      // Use window.location.href for full cross-domain page load.
+      if (
+        profile.verificationStatus === "verified" ||
+        profile.verificationStatus === "pending"
+      ) {
         const safeUrl = validateReturnUrl(returnUrl);
         window.location.href = safeUrl;
         return;
@@ -179,11 +182,15 @@ function VerifyContent() {
         email: user.email,
       });
       // After submission the status is "pending".
-      // Show a confirmation screen instead of redirecting back to market —
-      // an immediate redirect would trigger market's verification guard (which
-      // sees isVerified=false while still pending) and send the user straight
-      // back here, creating an infinite redirect loop.
+      // Show a confirmation screen instead of redirecting immediately —
+      // give the user a chance to read the success message.
+      // They can click "Back to app" or we auto-redirect after 3 seconds.
       setSubmitted(true);
+      // Auto-redirect after 3 seconds so the user sees the success screen
+      const safeUrl = validateReturnUrl(returnUrl);
+      setTimeout(() => {
+        window.location.href = safeUrl;
+      }, 3000);
     } catch (err: any) {
       setError(err?.message || "Submission failed. Please try again.");
     } finally {
@@ -251,7 +258,7 @@ function VerifyContent() {
                   <h2 className="text-2xl font-bold">Verification Submitted!</h2>
                   <p className="text-gray-300 mt-3 leading-relaxed">
                     Your documents are under review. The WildSaura team will get back to
-                    you within 24–48 hours.
+                    you within 24–48 hours. Redirecting you back in 3 seconds…
                   </p>
                 </div>
                 {returnUrl && returnUrl !== "/dashboard" && (
@@ -289,7 +296,6 @@ function VerifyContent() {
                         value={form.documentType}
                         onChange={(e) => {
                           updateField("documentType", e.target.value);
-                          // Reset photos if type changes
                           updateField("documentFrontUrl", "");
                           updateField("documentBackUrl", "");
                           setFrontPreview("");
@@ -310,7 +316,6 @@ function VerifyContent() {
                       <input className="input" value={form.documentNumber} onChange={(e) => updateField("documentNumber", e.target.value)} required />
                     </Field>
 
-                    {/* Front photo upload */}
                     <div>
                       <p className="text-sm text-gray-300 mb-2">
                         Front of {docLabel} <span className="text-red-400">*</span>
@@ -327,13 +332,7 @@ function VerifyContent() {
                         <div className="relative rounded-xl overflow-hidden border border-white/10 bg-white/5">
                           <img src={frontPreview} alt="Front document preview" className="w-full max-h-48 object-contain" />
                           <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition">
-                            <button
-                              type="button"
-                              onClick={() => frontInputRef.current?.click()}
-                              className="rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold"
-                            >
-                              Change photo
-                            </button>
+                            <button type="button" onClick={() => frontInputRef.current?.click()} className="rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold">Change photo</button>
                           </div>
                           {uploadingFront && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/60">
@@ -341,17 +340,11 @@ function VerifyContent() {
                             </div>
                           )}
                           {!uploadingFront && form.documentFrontUrl && (
-                            <div className="absolute top-2 right-2 rounded-full bg-emerald-500/80 px-2 py-0.5 text-xs text-white font-semibold">
-                              ✓ Uploaded
-                            </div>
+                            <div className="absolute top-2 right-2 rounded-full bg-emerald-500/80 px-2 py-0.5 text-xs text-white font-semibold">✓ Uploaded</div>
                           )}
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => frontInputRef.current?.click()}
-                          className="flex items-center justify-center gap-3 w-full rounded-xl border-2 border-dashed border-white/20 bg-white/5 hover:bg-white/10 p-8 transition"
-                        >
+                        <button type="button" onClick={() => frontInputRef.current?.click()} className="flex items-center justify-center gap-3 w-full rounded-xl border-2 border-dashed border-white/20 bg-white/5 hover:bg-white/10 p-8 transition">
                           <span className="text-3xl">📷</span>
                           <div className="text-left">
                             <p className="font-semibold text-sm">Upload front of {docLabel}</p>
@@ -361,7 +354,6 @@ function VerifyContent() {
                       )}
                     </div>
 
-                    {/* Back photo upload (only for applicable document types) */}
                     {needsBack && (
                       <div>
                         <p className="text-sm text-gray-300 mb-2">
@@ -379,13 +371,7 @@ function VerifyContent() {
                           <div className="relative rounded-xl overflow-hidden border border-white/10 bg-white/5">
                             <img src={backPreview} alt="Back document preview" className="w-full max-h-48 object-contain" />
                             <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition">
-                              <button
-                                type="button"
-                                onClick={() => backInputRef.current?.click()}
-                                className="rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold"
-                              >
-                                Change photo
-                              </button>
+                              <button type="button" onClick={() => backInputRef.current?.click()} className="rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold">Change photo</button>
                             </div>
                             {uploadingBack && (
                               <div className="absolute inset-0 flex items-center justify-center bg-black/60">
@@ -393,17 +379,11 @@ function VerifyContent() {
                               </div>
                             )}
                             {!uploadingBack && form.documentBackUrl && (
-                              <div className="absolute top-2 right-2 rounded-full bg-emerald-500/80 px-2 py-0.5 text-xs text-white font-semibold">
-                                ✓ Uploaded
-                              </div>
+                              <div className="absolute top-2 right-2 rounded-full bg-emerald-500/80 px-2 py-0.5 text-xs text-white font-semibold">✓ Uploaded</div>
                             )}
                           </div>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => backInputRef.current?.click()}
-                            className="flex items-center justify-center gap-3 w-full rounded-xl border-2 border-dashed border-white/20 bg-white/5 hover:bg-white/10 p-8 transition"
-                          >
+                          <button type="button" onClick={() => backInputRef.current?.click()} className="flex items-center justify-center gap-3 w-full rounded-xl border-2 border-dashed border-white/20 bg-white/5 hover:bg-white/10 p-8 transition">
                             <span className="text-3xl">📷</span>
                             <div className="text-left">
                               <p className="font-semibold text-sm">Upload back of {docLabel}</p>
