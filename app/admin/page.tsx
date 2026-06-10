@@ -26,7 +26,7 @@ const Icons = {
     </svg>
   ),
   Users: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
       <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -55,6 +55,16 @@ const Icons = {
   ChevronRight: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
       <polyline points="9 18 15 12 9 6" />
+    </svg>
+  ),
+  ChevronDown: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  ),
+  ChevronUp: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+      <polyline points="18 15 12 9 6 15" />
     </svg>
   ),
   Search: () => (
@@ -215,9 +225,21 @@ function Avatar({ name, size = 'md' }: { name: string; size?: 'md' | 'lg' }) {
   );
 }
 
-function StatCard({ icon, label, value, gradient, ring }: { icon: React.ReactNode; label: string; value: number; gradient: string; ring: string }) {
+function StatCard({ icon, label, value, gradient, ring, onClick, active }: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  gradient: string;
+  ring: string;
+  onClick?: () => void;
+  active?: boolean;
+}) {
   return (
-    <div className={`relative overflow-hidden rounded-2xl p-4 bg-gray-900 ring-1 ${ring}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative overflow-hidden rounded-2xl p-4 bg-gray-900 ring-1 ${ring} w-full text-left transition-all active:scale-95 ${active ? 'ring-2' : ''}`}
+    >
       <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-10`} />
       <div className="relative">
         <div className={`inline-flex p-2 rounded-xl bg-gradient-to-br ${gradient} text-white mb-3`}>
@@ -226,7 +248,7 @@ function StatCard({ icon, label, value, gradient, ring }: { icon: React.ReactNod
         <div className="text-3xl font-bold text-white">{value}</div>
         <div className="text-xs text-gray-400 mt-0.5 font-medium">{label}</div>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -289,6 +311,7 @@ function UserRow({ u, onOpen }: { u: AdminUser; onOpen: () => void }) {
   const displayName = u.displayName || u.fullName || u.username || 'Unknown User';
   return (
     <button
+      type="button"
       className="w-full text-left px-4 py-3 flex items-center gap-3 bg-gray-900 hover:bg-gray-800/80 active:bg-gray-800 rounded-2xl border border-gray-800/60 hover:border-gray-700/80 transition-all"
       onClick={onOpen}
     >
@@ -321,9 +344,11 @@ function UserBottomSheet({ u, onClose, onApprove, onReject, actionLoading }: {
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+      {/* Backdrop — button for iOS tap support */}
+      <button
+        type="button"
+        aria-label="Close"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 w-full cursor-default"
         onClick={onClose}
       />
       {/* Sheet */}
@@ -343,6 +368,7 @@ function UserBottomSheet({ u, onClose, onApprove, onReject, actionLoading }: {
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-400 transition flex-shrink-0"
           >
@@ -351,7 +377,6 @@ function UserBottomSheet({ u, onClose, onApprove, onReject, actionLoading }: {
         </div>
         {/* Scrollable content */}
         <div className="overflow-y-auto flex-1 px-5 pb-8">
-          {/* Personal Info */}
           <SectionLabel>Personal Info</SectionLabel>
           <div className="grid grid-cols-1 gap-2.5">
             {(u.fullName || u.displayName) && (
@@ -367,7 +392,6 @@ function UserBottomSheet({ u, onClose, onApprove, onReject, actionLoading }: {
             {u.username && <DetailRow icon={<Icons.Hash />} label="Username" value={u.username} mono />}
           </div>
 
-          {/* Document Details */}
           <SectionLabel>Document Details</SectionLabel>
           <div className="grid grid-cols-1 gap-2.5">
             {u.documentType && (
@@ -391,7 +415,6 @@ function UserBottomSheet({ u, onClose, onApprove, onReject, actionLoading }: {
             <p className="text-xs text-gray-600 italic mt-1">No document submitted</p>
           )}
 
-          {/* Submission Info */}
           <SectionLabel>Submission Info</SectionLabel>
           <div className="grid grid-cols-1 gap-2.5">
             <DetailRow icon={<Icons.Hash />} label="UID" value={u.uid} mono truncate />
@@ -406,10 +429,10 @@ function UserBottomSheet({ u, onClose, onApprove, onReject, actionLoading }: {
             )}
           </div>
 
-          {/* Action buttons */}
           {normalized === 'pending' && (
             <div className="flex gap-2 pt-5">
               <button
+                type="button"
                 onClick={(e) => { e.stopPropagation(); onApprove(); }}
                 disabled={!!actionLoading}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-semibold transition-all active:scale-95"
@@ -422,6 +445,7 @@ function UserBottomSheet({ u, onClose, onApprove, onReject, actionLoading }: {
                 Approve
               </button>
               <button
+                type="button"
                 onClick={(e) => { e.stopPropagation(); onReject(); }}
                 disabled={!!actionLoading}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-semibold transition-all active:scale-95"
@@ -461,6 +485,8 @@ function AdminDashboardInner() {
   const [filter, setFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // User list starts CLOSED — tap the section header to reveal
+  const [listOpen, setListOpen] = useState(false);
 
   useEffect(() => { fetchUsers(); }, []);
 
@@ -505,7 +531,6 @@ function AdminDashboardInner() {
       setUsers((prev) =>
         prev.map((u) => u.uid === uid ? { ...u, verificationStatus: status, verified: status === 'verified' } : u)
       );
-      // Update selected user status too
       setSelectedUser((prev) =>
         prev && prev.uid === uid ? { ...prev, verificationStatus: status, verified: status === 'verified' } : prev
       );
@@ -560,6 +585,7 @@ function AdminDashboardInner() {
             </div>
           </div>
           <button
+            type="button"
             onClick={() => router.push('/dashboard')}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold transition-all active:scale-95"
           >
@@ -579,72 +605,109 @@ function AdminDashboardInner() {
           </span>
         </div>
 
-        {/* Stats */}
+        {/* Stats — tap a card to filter + auto-open list */}
         <div className="grid grid-cols-2 gap-3 mb-6">
-          <StatCard icon={<Icons.Users />}       label="Total Users" value={counts.total}    gradient="from-indigo-500 to-purple-600" ring="ring-indigo-500/20" />
-          <StatCard icon={<Icons.CheckCircle />} label="Verified"    value={counts.verified} gradient="from-emerald-500 to-teal-600"  ring="ring-emerald-500/20" />
-          <StatCard icon={<Icons.Clock />}       label="Pending"     value={counts.pending}  gradient="from-amber-500 to-orange-600"  ring="ring-amber-500/20" />
-          <StatCard icon={<Icons.XCircle />}     label="Rejected"    value={counts.rejected} gradient="from-red-500 to-rose-600"      ring="ring-red-500/20" />
+          <StatCard
+            icon={<Icons.Users />} label="Total Users" value={counts.total}
+            gradient="from-indigo-500 to-purple-600" ring="ring-indigo-500/20"
+            onClick={() => { setFilter('all'); setListOpen(true); }}
+            active={listOpen && filter === 'all'}
+          />
+          <StatCard
+            icon={<Icons.CheckCircle />} label="Verified" value={counts.verified}
+            gradient="from-emerald-500 to-teal-600" ring="ring-emerald-500/20"
+            onClick={() => { setFilter('verified'); setListOpen(true); }}
+            active={listOpen && filter === 'verified'}
+          />
+          <StatCard
+            icon={<Icons.Clock />} label="Pending" value={counts.pending}
+            gradient="from-amber-500 to-orange-600" ring="ring-amber-500/20"
+            onClick={() => { setFilter('pending'); setListOpen(true); }}
+            active={listOpen && filter === 'pending'}
+          />
+          <StatCard
+            icon={<Icons.XCircle />} label="Rejected" value={counts.rejected}
+            gradient="from-red-500 to-rose-600" ring="ring-red-500/20"
+            onClick={() => { setFilter('rejected'); setListOpen(true); }}
+            active={listOpen && filter === 'rejected'}
+          />
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col gap-2 mb-5">
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-              <Icons.Search />
-            </span>
-            <input
-              type="text"
-              placeholder="Search by name, email, phone, doc number, UID\u2026"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition"
-            />
+        {/* ── Users Section Toggle ─────────────────────────────────────── */}
+        <button
+          type="button"
+          onClick={() => setListOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-gray-900 border border-gray-800/60 hover:border-gray-700 transition-all active:scale-[0.99] mb-3"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-gray-400"><Icons.Users /></span>
+            <span className="text-sm font-semibold text-white">Users</span>
+            <span className="px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 text-xs font-medium">{filtered.length}</span>
           </div>
-          <div className="flex gap-2">
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="flex-1 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
-            >
-              <option value="all">All Users</option>
-              <option value="not_started">Not Started</option>
-              <option value="pending">Pending</option>
-              <option value="verified">Verified</option>
-              <option value="rejected">Rejected</option>
-            </select>
-            <button
-              onClick={fetchUsers}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm font-semibold text-gray-300 transition-all active:scale-95"
-            >
-              <Icons.Refresh />
-              Refresh
-            </button>
-          </div>
-        </div>
+          <span className="text-gray-500">
+            {listOpen ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+          </span>
+        </button>
 
-        {/* User Count */}
-        <p className="text-xs text-gray-600 mb-3 font-medium">
-          {filtered.length} user{filtered.length !== 1 ? 's' : ''}{filter !== 'all' ? ` \u00b7 ${filter}` : ''}
-        </p>
-
-        {/* User List \u2014 compact rows */}
-        <div className="flex flex-col gap-2">
-          {filtered.length === 0 ? (
-            <div className="text-center py-16 text-gray-600">
-              <div className="text-4xl mb-2">&#x1F50D;</div>
-              <p className="text-sm">No users found</p>
+        {/* ── Collapsible List ─────────────────────────────────────────── */}
+        {listOpen && (
+          <div className="animate-fade-in">
+            {/* Filters */}
+            <div className="flex flex-col gap-2 mb-4">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                  <Icons.Search />
+                </span>
+                <input
+                  type="text"
+                  placeholder="Search by name, email, phone, UID\u2026"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition"
+                />
+              </div>
+              <div className="flex gap-2">
+                <select
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  className="flex-1 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
+                >
+                  <option value="all">All Users</option>
+                  <option value="not_started">Not Started</option>
+                  <option value="pending">Pending</option>
+                  <option value="verified">Verified</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={fetchUsers}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm font-semibold text-gray-300 transition-all active:scale-95"
+                >
+                  <Icons.Refresh />
+                  Refresh
+                </button>
+              </div>
             </div>
-          ) : (
-            filtered.map((u) => (
-              <UserRow
-                key={u.uid}
-                u={u}
-                onOpen={() => setSelectedUser(u)}
-              />
-            ))
-          )}
-        </div>
+
+            {/* User rows */}
+            <div className="flex flex-col gap-2">
+              {filtered.length === 0 ? (
+                <div className="text-center py-16 text-gray-600">
+                  <div className="text-4xl mb-2">&#x1F50D;</div>
+                  <p className="text-sm">No users found</p>
+                </div>
+              ) : (
+                filtered.map((u) => (
+                  <UserRow
+                    key={u.uid}
+                    u={u}
+                    onOpen={() => setSelectedUser(u)}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom Sheet */}
@@ -657,6 +720,23 @@ function AdminDashboardInner() {
           actionLoading={actionLoading}
         />
       )}
+
+      <style jsx global>{`
+        @keyframes slide-up {
+          from { transform: translateY(100%); }
+          to   { transform: translateY(0); }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.2s ease;
+        }
+      `}</style>
     </div>
   );
 }
