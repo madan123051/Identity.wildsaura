@@ -42,33 +42,10 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://firebasestorage.googleapis.com https://lh3.googleusercontent.com",
               "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com",
-              // Added identity.wildsaura.com for Firebase custom authDomain redirect support
-              "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://identity.wildsaura.com",
+              "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com",
             ].join('; '),
           },
         ],
-      },
-    ];
-  },
-
-  // ─── Rewrites — proxy Firebase auth handler paths ─────────────────────
-  // Firebase Google Sign-In redirect (mobile fallback) redirects to:
-  //   identity.wildsaura.com/__/auth/handler
-  // Next.js doesn't know this route → 404. We proxy it to Firebase here.
-  async rewrites() {
-    return [
-      {
-        source: '/__/auth/:path*',
-        destination: 'https://wildsaura-1ef8a.firebaseapp.com/__/auth/:path*',
-      },
-      {
-        source: '/__/firebase/:path*',
-        destination: 'https://wildsaura-1ef8a.firebaseapp.com/__/firebase/:path*',
-      },
-      // Existing redirect kept as rewrite for compatibility
-      {
-        source: '/home',
-        destination: '/dashboard',
       },
     ];
   },
