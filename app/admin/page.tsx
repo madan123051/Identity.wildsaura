@@ -18,7 +18,7 @@ type AdminUser = IdentityProfile & {
   notes?: string;
 };
 
-// ─── SVG Icons ───────────────────────────────────────────────────────────────
+// ─── SVG Icons ─────────────────────────────────────────────────────────────
 const Icons = {
   Shield: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
@@ -52,9 +52,9 @@ const Icons = {
       <line x1="9" y1="9" x2="15" y2="15" />
     </svg>
   ),
-  ChevronDown: () => (
+  ChevronRight: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-      <polyline points="6 9 12 15 18 9" />
+      <polyline points="9 18 15 12 9 6" />
     </svg>
   ),
   Search: () => (
@@ -74,6 +74,12 @@ const Icons = {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
       <line x1="19" y1="12" x2="5" y2="12" />
       <polyline points="12 19 5 12 12 5" />
+    </svg>
+  ),
+  Close: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   ),
   Mail: () => (
@@ -101,9 +107,6 @@ const Icons = {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <polyline points="14 2 14 8 20 8" />
-      <line x1="16" y1="13" x2="8" y2="13" />
-      <line x1="16" y1="17" x2="8" y2="17" />
-      <polyline points="10 9 9 9 8 9" />
     </svg>
   ),
   Check: () => (
@@ -188,7 +191,7 @@ function StatusBadge({ status, verified }: { status: string; verified?: boolean 
   );
 }
 
-function Avatar({ name }: { name: string }) {
+function Avatar({ name, size = 'md' }: { name: string; size?: 'md' | 'lg' }) {
   const initials = name
     .split(' ')
     .map((w) => w[0])
@@ -204,8 +207,9 @@ function Avatar({ name }: { name: string }) {
     'from-violet-500 to-fuchsia-600',
   ];
   const colorIndex = (name.charCodeAt(0) || 0) % colors.length;
+  const sizeClass = size === 'lg' ? 'w-16 h-16 text-xl' : 'w-10 h-10 text-sm';
   return (
-    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${colors[colorIndex]} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>
+    <div className={`${sizeClass} rounded-full bg-gradient-to-br ${colors[colorIndex]} flex items-center justify-center text-white font-bold flex-shrink-0`}>
       {initials}
     </div>
   );
@@ -226,17 +230,15 @@ function StatCard({ icon, label, value, gradient, ring }: { icon: React.ReactNod
   );
 }
 
-// ─── Section divider ──────────────────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 mt-4 mb-2">
+    <div className="flex items-center gap-2 mt-5 mb-2.5">
       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{children}</span>
       <div className="flex-1 h-px bg-gray-700/60" />
     </div>
   );
 }
 
-// ─── Document image thumbnail ─────────────────────────────────────────────────
 function DocPhoto({ url, label }: { url: string; label: string }) {
   const [imgError, setImgError] = useState(false);
   return (
@@ -270,11 +272,46 @@ function DocPhoto({ url, label }: { url: string; label: string }) {
   );
 }
 
-// ─── User card ────────────────────────────────────────────────────────────────
-function UserCard({ u, expanded, onToggle, onApprove, onReject, actionLoading }: {
+function DetailRow({ icon, label, value, mono, truncate }: { icon: React.ReactNode; label: string; value: string; mono?: boolean; truncate?: boolean }) {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="mt-0.5 text-gray-500">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-0.5">{label}</div>
+        <div className={`text-sm text-gray-200 ${mono ? 'font-mono' : ''} ${truncate ? 'truncate' : 'break-all'}`}>{value}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Compact User Row ──────────────────────────────────────────────────────────
+function UserRow({ u, onOpen }: { u: AdminUser; onOpen: () => void }) {
+  const displayName = u.displayName || u.fullName || u.username || 'Unknown User';
+  return (
+    <button
+      className="w-full text-left px-4 py-3 flex items-center gap-3 bg-gray-900 hover:bg-gray-800/80 active:bg-gray-800 rounded-2xl border border-gray-800/60 hover:border-gray-700/80 transition-all"
+      onClick={onOpen}
+    >
+      <Avatar name={displayName} />
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-white text-sm truncate">{displayName}</div>
+        <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
+          <span className="font-mono truncate">{u.uid.slice(0, 10)}\u2026</span>
+          {u.source && (
+            <span className="px-1.5 py-0.5 rounded bg-gray-700/60 text-gray-400 text-[10px] font-medium">{u.source}</span>
+          )}
+        </div>
+      </div>
+      <StatusBadge status={u.verificationStatus} verified={u.verified} />
+      <span className="text-gray-600 ml-1"><Icons.ChevronRight /></span>
+    </button>
+  );
+}
+
+// ─── Bottom Sheet ──────────────────────────────────────────────────────────────
+function UserBottomSheet({ u, onClose, onApprove, onReject, actionLoading }: {
   u: AdminUser;
-  expanded: boolean;
-  onToggle: () => void;
+  onClose: () => void;
   onApprove: () => void;
   onReject: () => void;
   actionLoading: string | null;
@@ -283,48 +320,42 @@ function UserCard({ u, expanded, onToggle, onApprove, onReject, actionLoading }:
   const displayName = u.displayName || u.fullName || u.username || 'Unknown User';
 
   return (
-    <div className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
-      expanded
-        ? 'bg-gray-800/80 border-indigo-500/40 shadow-lg shadow-indigo-500/10'
-        : 'bg-gray-900 border-gray-800/60 hover:border-gray-700/80 hover:bg-gray-800/50'
-    }`}>
-      {/* Collapsed Row */}
-      <button
-        className="w-full text-left px-4 py-3.5 flex items-center gap-3 group"
-        onClick={onToggle}
-      >
-        <Avatar name={displayName} />
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-white text-sm truncate">{displayName}</div>
-          <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
-            <span className="font-mono truncate">{u.uid.slice(0, 10)}&hellip;</span>
-            {u.source && (
-              <span className="px-1.5 py-0.5 rounded bg-gray-700/60 text-gray-400 text-[10px] font-medium">
-                {u.source}
-              </span>
-            )}
-            {u.submittedAt && (
-              <span className="text-gray-600 text-[10px]">
-                &middot; {formatFirebaseDate(u.submittedAt)}
-              </span>
-            )}
-          </div>
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+        onClick={onClose}
+      />
+      {/* Sheet */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 rounded-t-3xl border-t border-gray-700/60 max-h-[90vh] flex flex-col animate-slide-up">
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-gray-600" />
         </div>
-        <StatusBadge status={u.verificationStatus} verified={u.verified} />
-        <span className={`text-gray-500 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>
-          <Icons.ChevronDown />
-        </span>
-      </button>
-
-      {/* Expanded Panel */}
-      {expanded && (
-        <div className="px-4 pb-5 border-t border-gray-700/50 pt-3">
-
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-800/60 flex-shrink-0">
+          <Avatar name={displayName} size="lg" />
+          <div className="flex-1 min-w-0">
+            <div className="font-bold text-white text-base truncate">{displayName}</div>
+            {u.email && <div className="text-xs text-gray-400 font-mono truncate mt-0.5">{u.email}</div>}
+            <div className="mt-1.5">
+              <StatusBadge status={u.verificationStatus} verified={u.verified} />
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-400 transition flex-shrink-0"
+          >
+            <Icons.Close />
+          </button>
+        </div>
+        {/* Scrollable content */}
+        <div className="overflow-y-auto flex-1 px-5 pb-8">
           {/* Personal Info */}
           <SectionLabel>Personal Info</SectionLabel>
           <div className="grid grid-cols-1 gap-2.5">
             {(u.fullName || u.displayName) && (
-              <DetailRow icon={<Icons.User />} label="Full Name" value={u.fullName || u.displayName} />
+              <DetailRow icon={<Icons.User />} label="Full Name" value={u.fullName || u.displayName || ''} />
             )}
             <DetailRow icon={<Icons.Mail />} label="Email" value={u.email || '\u2014'} mono />
             {u.phone && <DetailRow icon={<Icons.Phone />} label="Phone" value={u.phone} />}
@@ -346,13 +377,9 @@ function UserCard({ u, expanded, onToggle, onApprove, onReject, actionLoading }:
               <DetailRow icon={<Icons.CreditCard />} label="Document Number" value={u.documentNumber} mono />
             )}
           </div>
-
           {(u.documentFrontUrl || u.documentUrl) && (
             <div className="mt-3">
-              <DocPhoto
-                url={u.documentFrontUrl || u.documentUrl || ''}
-                label="Front Photo"
-              />
+              <DocPhoto url={u.documentFrontUrl || u.documentUrl || ''} label="Front Photo" />
             </div>
           )}
           {u.documentBackUrl && (
@@ -381,11 +408,11 @@ function UserCard({ u, expanded, onToggle, onApprove, onReject, actionLoading }:
 
           {/* Action buttons */}
           {normalized === 'pending' && (
-            <div className="flex gap-2 pt-4">
+            <div className="flex gap-2 pt-5">
               <button
                 onClick={(e) => { e.stopPropagation(); onApprove(); }}
                 disabled={!!actionLoading}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-semibold transition-all active:scale-95"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-semibold transition-all active:scale-95"
               >
                 {actionLoading === u.uid + 'verified' ? (
                   <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -397,7 +424,7 @@ function UserCard({ u, expanded, onToggle, onApprove, onReject, actionLoading }:
               <button
                 onClick={(e) => { e.stopPropagation(); onReject(); }}
                 disabled={!!actionLoading}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-semibold transition-all active:scale-95"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-semibold transition-all active:scale-95"
               >
                 {actionLoading === u.uid + 'rejected' ? (
                   <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -409,24 +436,22 @@ function UserCard({ u, expanded, onToggle, onApprove, onReject, actionLoading }:
             </div>
           )}
         </div>
-      )}
-    </div>
-  );
-}
-
-function DetailRow({ icon, label, value, mono, truncate }: { icon: React.ReactNode; label: string; value: string; mono?: boolean; truncate?: boolean }) {
-  return (
-    <div className="flex items-start gap-2">
-      <span className="mt-0.5 text-gray-500">{icon}</span>
-      <div className="min-w-0 flex-1">
-        <div className="text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-0.5">{label}</div>
-        <div className={`text-sm text-gray-200 ${mono ? 'font-mono' : ''} ${truncate ? 'truncate' : 'break-all'}`}>{value}</div>
       </div>
-    </div>
+
+      <style jsx global>{`
+        @keyframes slide-up {
+          from { transform: translateY(100%); }
+          to   { transform: translateY(0); }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+      `}</style>
+    </>
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main Component ────────────────────────────────────────────────────────────
 function AdminDashboardInner() {
   const { user, canReviewVerification, claims } = useAuth();
   const router = useRouter();
@@ -434,7 +459,7 @@ function AdminDashboardInner() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
-  const [expandedUid, setExpandedUid] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => { fetchUsers(); }, []);
@@ -480,6 +505,10 @@ function AdminDashboardInner() {
       setUsers((prev) =>
         prev.map((u) => u.uid === uid ? { ...u, verificationStatus: status, verified: status === 'verified' } : u)
       );
+      // Update selected user status too
+      setSelectedUser((prev) =>
+        prev && prev.uid === uid ? { ...prev, verificationStatus: status, verified: status === 'verified' } : prev
+      );
     } finally {
       setActionLoading(null);
     }
@@ -511,7 +540,7 @@ function AdminDashboardInner() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 gap-4">
         <div className="w-10 h-10 border-2 border-gray-700 border-t-indigo-500 rounded-full animate-spin" />
-        <p className="text-gray-500 text-sm">Loading users&hellip;</p>
+        <p className="text-gray-500 text-sm">Loading users\u2026</p>
       </div>
     );
   }
@@ -566,7 +595,7 @@ function AdminDashboardInner() {
             </span>
             <input
               type="text"
-              placeholder="Search by name, email, phone, doc number, UID&hellip;"
+              placeholder="Search by name, email, phone, doc number, UID\u2026"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition"
@@ -596,10 +625,10 @@ function AdminDashboardInner() {
 
         {/* User Count */}
         <p className="text-xs text-gray-600 mb-3 font-medium">
-          {filtered.length} user{filtered.length !== 1 ? 's' : ''} {filter !== 'all' ? `\u00b7 ${filter}` : ''}
+          {filtered.length} user{filtered.length !== 1 ? 's' : ''}{filter !== 'all' ? ` \u00b7 ${filter}` : ''}
         </p>
 
-        {/* User Cards */}
+        {/* User List \u2014 compact rows */}
         <div className="flex flex-col gap-2">
           {filtered.length === 0 ? (
             <div className="text-center py-16 text-gray-600">
@@ -608,19 +637,26 @@ function AdminDashboardInner() {
             </div>
           ) : (
             filtered.map((u) => (
-              <UserCard
+              <UserRow
                 key={u.uid}
                 u={u}
-                expanded={expandedUid === u.uid}
-                onToggle={() => setExpandedUid(expandedUid === u.uid ? null : u.uid)}
-                onApprove={() => updateStatus(u.uid, 'verified')}
-                onReject={() => updateStatus(u.uid, 'rejected')}
-                actionLoading={actionLoading}
+                onOpen={() => setSelectedUser(u)}
               />
             ))
           )}
         </div>
       </div>
+
+      {/* Bottom Sheet */}
+      {selectedUser && (
+        <UserBottomSheet
+          u={selectedUser}
+          onClose={() => setSelectedUser(null)}
+          onApprove={() => updateStatus(selectedUser.uid, 'verified')}
+          onReject={() => updateStatus(selectedUser.uid, 'rejected')}
+          actionLoading={actionLoading}
+        />
+      )}
     </div>
   );
 }
